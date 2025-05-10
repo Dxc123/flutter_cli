@@ -7,6 +7,9 @@ dart cli工具，生成 getx 项目目录结构，需配合 Git 模版使用
 
 dart pub global activate -sgit https://github.com/Dxc123/flutter_cli.git
 
+列出本地所有的cli 工具
+dart pub global list
+
 本地移除：dart pub global deactivate flutter_cli
 
 生成page命令：
