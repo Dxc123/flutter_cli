@@ -17,9 +17,19 @@ const Map<String, List<String>> templateStructure = {
 void createPage(String pageName) async {
   final className = toPascalCase(pageName);
 
-  final baseDir = Directory(path.join(Directory.current.path, 'pages'));
+  final currentPath = Directory.current.path;
+  final modulesPath = path.join(currentPath, 'modules');
+  final modulesDir = Directory(modulesPath);
+
+  if (modulesDir.existsSync()) {
+    print('✅ 使用已存在的 "modules" 目录：$modulesPath');
+  }else {
+    modulesDir.createSync(recursive: true);
+    print('📁 创建 "modules" 目录：$modulesPath');
+  }
 
   for (final entry in templateStructure.entries) {
+    final baseDir = Directory(path.join(modulesPath, pageName));
     final folderPath = path.join(baseDir.path, entry.key);
     Directory(folderPath).createSync(recursive: true);
     print('📁 Created folder: $folderPath');
