@@ -1,0 +1,12 @@
+import 'package:get/get.dart';
+
+import '../controllers/{{pageName}}_controller.dart';
+
+class {{className}}hBinding extends Bindings {
+  @override
+  void dependencies() {
+    Get.lazyPut<{{className}}Controller>(
+      () => {{className}}Controller(),
+    );
+  }
+}

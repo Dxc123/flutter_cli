@@ -1,0 +1,24 @@
+name: cli
+description: A demo for creating a CLI tool with Dart.
+version: 1.0.0
+# repository: https://github.com/my_org/my_repo
+
+environment:
+  sdk: ^3.7.2
+
+# Add regular dependencies here.
+dependencies:
+  dcli: ^7.0.3
+  http: ^1.4.0
+  path: ^1.9.1
+
+dev_dependencies:
+  lints: ^5.0.0
+  test: ^1.24.0
+
+executables:
+  cli: cli
+
+# Include templates in the package
+include:
+  - lib/templates/page/
