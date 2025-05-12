@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as path;
 
-import 'cli_load_template_utils.dart';
+import 'utils/cli_load_template_util.dart';
 
 /// GitHub 原始模板地址（可替换为你的仓库）
 /// raw.githubusercontent.com 是访问 GitHub 原始文件的推荐方式。

@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:io';
+
+import 'utils/cli_log_until.dart';
 //清理当前目录下所有Flutter项目以便释放更多磁盘空间
 Future<void> flutterClean() async {
   logInfo('Scanning current directory for Flutter projects...');
@@ -96,19 +98,3 @@ Future<void> _deleteBuildAsync(Directory dir) async {
   }
 }
 
-/// 日志输出工具（带颜色）
-void logInfo(String message) {
-  print('\x1B[34m[INFO] $message\x1B[0m'); // 蓝色
-}
-
-void logSuccess(String message) {
-  print('\x1B[32m[SUCCESS] $message\x1B[0m'); // 绿色
-}
-
-void logWarning(String message) {
-  print('\x1B[33m[WARNING] $message\x1B[0m'); // 黄色
-}
-
-void logError(String message) {
-  print('\x1B[31m[ERROR] $message\x1B[0m'); // 红色
-}

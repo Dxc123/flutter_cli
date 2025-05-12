@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:path/path.dart' as path;
 
-import 'cli_load_template_utils.dart';
+import 'utils/cli_load_template_util.dart';
 
 /// GitHub 原始模板地址（可替换为你的仓库）
 const githubBaseUrl = 'https://raw.githubusercontent.com/Dxc123/flutter_getx_template/main/lib/templates/common';
