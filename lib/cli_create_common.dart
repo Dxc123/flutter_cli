@@ -9,14 +9,32 @@ const githubBaseUrl = 'https://raw.githubusercontent.com/Dxc123/flutter_getx_tem
 const Map<String, List<String>> templateStructure = {
   'api': ['index.dart'],
   'components': ['index.dart'],
-  'extension': ['index.dart'],
+  'extension': [
+    'index.dart',
+    'align_extension.dart',
+    'container_extension.dart',
+    'date_time_extension.dart',
+    'positioned_extension.dart',
+    'size_box_extension.dart',
+    'widget_padding_extension.dart',
+  ],
   'i18n': ['index.dart'],
   'models': ['index.dart'],
-  'routers': ['index.dart', 'names.dart', 'pages.dart'],
+  'routers': [
+    'index.dart',
+    'names.dart',
+    'pages.dart',
+  ],
   'services': ['index.dart'],
   'style': ['index.dart'],
   'utils': ['index.dart'],
-  'values': ['index.dart', 'constants.dart', 'images.dart', 'svgs.dart', 'enums.dart'],
+  'values': [
+    'index.dart',
+    'constants.dart',
+    'images.dart',
+    'svgs.dart',
+    'enums.dart',
+  ],
   'widgets': ['index.dart'],
 };
 
