@@ -8,15 +8,14 @@ import 'package:cli/cli_flutter_gen_index.dart';
 import 'package:cli/cli_image_modify_md5.dart';
 import 'package:cli/utils/cli_load_template_util.dart';
 
-void main(List<String> arguments) async{
-  final parser =
-      ArgParser()
-        ..addFlag('help', abbr: 'h', help: '打印命令帮助信息', negatable: false)
-        ..addFlag('version', abbr: 'v', help: '打印 CLI 工具版本', negatable: false)
-        ..addFlag('clear', abbr: 'c', help: '删除 .template_cache 本地模板缓存', negatable: false)
-        ..addFlag('clean', abbr: 'l', help: '清理当前目录下所有Flutter项目以便释放更多磁盘空间', negatable: false)
-        ..addFlag('generate', abbr: 'g', help: '导出当前目录下所有dart头文件生成index.dart', negatable: false)
-        ..addFlag('md5', abbr: 'm', help: '批量修改当前目录下所有图片的MD5值', negatable: false);
+void main(List<String> arguments) async {
+  final parser = ArgParser()
+    ..addFlag('help', abbr: 'h', help: '打印命令帮助信息', negatable: false)
+    ..addFlag('version', abbr: 'v', help: '打印 CLI 工具版本', negatable: false)
+    ..addFlag('clear', abbr: 'c', help: '删除 .template_cache 本地模板缓存', negatable: false)
+    ..addFlag('clean', abbr: 'l', help: '清理当前目录下所有Flutter项目以便释放更多磁盘空间', negatable: false)
+    ..addFlag('generate', abbr: 'g', help: '导出当前目录下所有dart头文件生成index.dart', negatable: false)
+    ..addFlag('md5', abbr: 'm', help: '批量修改当前目录下所有图片的MD5值', negatable: false);
 
   final results = parser.parse(arguments);
 
@@ -40,14 +39,13 @@ void main(List<String> arguments) async{
     exit(0); // 清理完直接退出
   }
   if (results['generate']) {
-    await imagesModifyMD5();
-    exit(0); // 清理完直接退出
-  }
-  if (results['md5']) {
     generateIndex();
     exit(0); // 清理完直接退出
   }
-
+  if (results['md5']) {
+    await imagesModifyMD5();
+    exit(0); // 清理完直接退出
+  }
 
   if (arguments.length < 2 || arguments.first != 'create') {
     printUsage(parser);
