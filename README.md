@@ -28,6 +28,8 @@ cli --clean或者cli -l
 导出当前目录下所有dart头文件生成index.dart命令：
 cli --generate或者cli -g
 
+批量修改当前目录下所有图片的 MD5 值命令:
+cli --md5或者cli -m
 
 打印命令帮助信息：
 cli --help / cli -h
