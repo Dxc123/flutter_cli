@@ -46,9 +46,9 @@ Future<String?> loadTemplateFromGithub(
   return null;
 }
 
-//获取 mac 本地 .pub-cache/global_packages目录
+//获取 mac 本地 .pub-cache/global_packages/cli目录
 String _getGlobalPackagesPath() {
-  return path.join(_getPubCachePath(), 'global_packages');
+  return path.join(_getPubCachePath(), 'global_packages/cli');
 }
 String _getPubCachePath() {
   final env = Platform.environment;
