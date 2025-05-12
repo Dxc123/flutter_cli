@@ -9,9 +9,9 @@ import 'package:cli/cli_load_template_utils.dart';
 void main(List<String> arguments) async{
   final parser =
       ArgParser()
-        ..addFlag('help', abbr: 'h', help: 'Show usage information.', negatable: false)
-        ..addFlag('version', abbr: 'v', help: 'Show version information.', negatable: false)
-        ..addFlag('clear', abbr: 'c', help: '清理本地模板缓存.', negatable: false)
+        ..addFlag('help', abbr: 'h', help: '打印命令帮助信息', negatable: false)
+        ..addFlag('version', abbr: 'v', help: '打印 CLI 工具版本', negatable: false)
+        ..addFlag('clear', abbr: 'c', help: '删除 .template_cache 本地模板缓存', negatable: false)
         ..addFlag('clean', abbr: 'l', help: '清理当前目录下所有Flutter项目以便释放更多磁盘空间', negatable: false);
 
   final results = parser.parse(arguments);

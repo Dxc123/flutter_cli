@@ -20,7 +20,14 @@ cli create common
 
 
 清理本地模板缓存命令：
-cli --c
+cli --clear或者cli -c
 
 清理当前目录下所有Flutter项目命令：
-cli --clean
+cli --clean或者cli -l
+
+
+打印命令帮助信息：
+cli --help / cli -h
+打印 CLI 工具版本：
+cli --version / cli -v
+
