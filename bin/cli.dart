@@ -3,12 +3,14 @@ import 'dart:io';
 import 'package:cli/cli_create_common.dart';
 import 'package:cli/cli_create_page.dart';
 import 'package:args/args.dart';
+import 'package:cli/cli_load_template_utils.dart';
 
-void main(List<String> arguments) {
+void main(List<String> arguments) async{
   final parser =
       ArgParser()
         ..addFlag('help', abbr: 'h', help: 'Show usage information.', negatable: false)
-        ..addFlag('version', abbr: 'v', help: 'Show version information.', negatable: false);
+        ..addFlag('version', abbr: 'v', help: 'Show version information.', negatable: false)
+        ..addFlag('clear', abbr: 'c', help: 'Show version information.', negatable: false);
 
   final results = parser.parse(arguments);
 
@@ -20,6 +22,11 @@ void main(List<String> arguments) {
   if (results['version']) {
     printVersion();
     exit(0);
+  }
+
+  if (results['clear']) {
+    await clearTemplateCache();
+    exit(0); // 清理完直接退出
   }
 
   if (arguments.length < 2 || arguments.first != 'create') {

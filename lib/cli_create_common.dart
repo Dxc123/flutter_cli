@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:path/path.dart' as path;
-import 'package:http/http.dart' as http;
+
+import 'cli_load_template_utils.dart';
 
 /// GitHub 原始模板地址（可替换为你的仓库）
 const githubBaseUrl = 'https://raw.githubusercontent.com/Dxc123/flutter_getx_template/main/lib/templates/common';
@@ -48,7 +49,10 @@ Future<void> createCommonStructure() async {
     print('📁 Created folder: $folderPath');
 
     for (final fileName in entry.value) {
-      final content = await loadTemplateFromGithub('${entry.key}/${fileName.replaceAll('.dart', '.template')}');
+      final content = await loadTemplateFromGithub(
+        '${entry.key}/${fileName.replaceAll('.dart', '.template')}',
+        githubBaseUrl,
+      );
       if (content == null) {
         print('❌ Failed to fetch template: ${entry.key}/$fileName');
         exit(1);
@@ -61,7 +65,10 @@ Future<void> createCommonStructure() async {
   }
 
   // 顶层 index.dart
-  final indexContent = await loadTemplateFromGithub('index.template');
+  final indexContent = await loadTemplateFromGithub(
+    'index.template',
+    githubBaseUrl,
+  );
   if (indexContent == null) {
     print('❌ Failed to fetch root index.template');
     exit(1);
@@ -70,22 +77,4 @@ Future<void> createCommonStructure() async {
   final indexFilePath = path.join(baseDir.path, 'index.dart');
   File(indexFilePath).writeAsStringSync(indexContent);
   print('🚀 Created file: $indexFilePath');
-}
-
-/// 从 GitHub 加载模板文件
-Future<String?> loadTemplateFromGithub(String templatePath) async {
-  final url = '$githubBaseUrl/$templatePath';
-  try {
-    final response = await http.get(Uri.parse(url));
-    if (response.statusCode == 200) {
-      print('🌐 Loaded: $templatePath');
-      return response.body;
-    } else {
-      print('⚠️ HTTP ${response.statusCode} for $templatePath');
-      return null;
-    }
-  } catch (e) {
-    print('❌ Error loading $templatePath: $e');
-    return null;
-  }
 }

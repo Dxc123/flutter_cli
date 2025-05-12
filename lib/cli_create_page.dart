@@ -1,7 +1,8 @@
 import 'dart:io';
 
 import 'package:path/path.dart' as path;
-import 'package:http/http.dart' as http;
+
+import 'cli_load_template_utils.dart';
 
 /// GitHub 原始模板地址（可替换为你的仓库）
 /// raw.githubusercontent.com 是访问 GitHub 原始文件的推荐方式。
@@ -23,7 +24,7 @@ void createPage(String pageName) async {
 
   if (modulesDir.existsSync()) {
     print('✅ 使用已存在的 "modules" 目录：$modulesPath');
-  }else {
+  } else {
     modulesDir.createSync(recursive: true);
     print('📁 创建 "modules" 目录：$modulesPath');
   }
@@ -35,7 +36,10 @@ void createPage(String pageName) async {
     print('📁 Created folder: $folderPath');
 
     for (final fileName in entry.value) {
-      final content = await loadTemplateFromGithub('${entry.key}/${fileName.replaceAll('.dart', '.template')}');
+      final content = await loadTemplateFromGithub(
+        '${entry.key}/${fileName.replaceAll('.dart', '.template')}',
+        githubBaseUrl,
+      );
 
       if (content == null) {
         print('❌ Failed to fetch template: ${entry.key}/$fileName');
@@ -54,22 +58,4 @@ void createPage(String pageName) async {
 
 String toPascalCase(String str) {
   return str.split('_').map((word) => word.substring(0, 1).toUpperCase() + word.substring(1)).join('');
-}
-
-//// 尝试从 GitHub 加载模板文件
-Future<String?> loadTemplateFromGithub(String templateName) async {
-  final url = '$githubBaseUrl/$templateName';
-  try {
-    final response = await http.get(Uri.parse(url));
-    if (response.statusCode == 200) {
-      print('✅ 从 GitHub 成功加载模板: $templateName');
-      return response.body;
-    } else {
-      print('❌ GitHub 模板加载失败（${response.statusCode}）: $url');
-      return null;
-    }
-  } catch (e) {
-    print('❌ 加载 GitHub 模板出错: $e');
-    return null;
-  }
 }
