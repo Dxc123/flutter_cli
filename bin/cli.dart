@@ -12,7 +12,7 @@ void main(List<String> arguments) async{
         ..addFlag('help', abbr: 'h', help: 'Show usage information.', negatable: false)
         ..addFlag('version', abbr: 'v', help: 'Show version information.', negatable: false)
         ..addFlag('clear', abbr: 'c', help: '清理本地模板缓存.', negatable: false)
-        ..addFlag('clean', abbr: 'clean', help: '清理当前目录下所有Flutter项目以便释放更多磁盘空间', negatable: false);
+        ..addFlag('clean', abbr: 'l', help: '清理当前目录下所有Flutter项目以便释放更多磁盘空间', negatable: false);
 
   final results = parser.parse(arguments);
 
