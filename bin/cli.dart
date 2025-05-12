@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:cli/cli_create_common.dart';
 import 'package:cli/cli_create_page.dart';
 import 'package:args/args.dart';
+import 'package:cli/cli_flutter_cleaner.dart';
 import 'package:cli/cli_load_template_utils.dart';
 
 void main(List<String> arguments) async{
@@ -10,7 +11,8 @@ void main(List<String> arguments) async{
       ArgParser()
         ..addFlag('help', abbr: 'h', help: 'Show usage information.', negatable: false)
         ..addFlag('version', abbr: 'v', help: 'Show version information.', negatable: false)
-        ..addFlag('clear', abbr: 'c', help: 'Show version information.', negatable: false);
+        ..addFlag('clear', abbr: 'c', help: '清理本地模板缓存.', negatable: false)
+        ..addFlag('clean', abbr: 'clean', help: '清理当前目录下所有Flutter项目以便释放更多磁盘空间', negatable: false);
 
   final results = parser.parse(arguments);
 
@@ -29,6 +31,12 @@ void main(List<String> arguments) async{
     exit(0); // 清理完直接退出
   }
 
+  if (results['clean']) {
+    await flutterClean();
+    exit(0); // 清理完直接退出
+  }
+
+
   if (arguments.length < 2 || arguments.first != 'create') {
     printUsage(parser);
     exit(1);
@@ -40,7 +48,7 @@ void main(List<String> arguments) async{
     final pageName = command.split(':')[1];
     createPage(pageName);
   } else if (command.startsWith('common')) {
-    createCommonStructure();
+    await createCommonStructure();
   } else {
     print('Invalid command format. Expected: create page:<pagename>');
     printUsage(parser);

@@ -17,3 +17,10 @@ cli create page:zt_home
 
 生成common目录命令：
 cli create common
+
+
+清理本地模板缓存命令：
+cli --c
+
+清理当前目录下所有Flutter项目命令：
+cli --clean

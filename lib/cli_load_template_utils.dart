@@ -46,21 +46,6 @@ Future<String?> loadTemplateFromGithub(
   return null;
 }
 
-//获取 mac 本地 .pub-cache/global_packages/cli目录
-String _getGlobalPackagesPath() {
-  return path.join(_getPubCachePath(), 'global_packages/cli');
-}
-String _getPubCachePath() {
-  final env = Platform.environment;
-  final home = env['HOME'] ?? env['USERPROFILE']; // macOS/Linux 或 Windows
-  if (home == null) throw Exception('无法确定主目录');
-
-  final pubCache = env['PUB_CACHE'] ?? path.join(home, '.pub-cache');
-  return pubCache;
-}
-
-
-
 /// 清理本地模板缓存
 Future<void> clearTemplateCache() async {
   final cacheDir = Directory(path.join(_getGlobalPackagesPath() ?? Directory.current.path, '.template_cache'));
@@ -79,4 +64,17 @@ Future<void> clearTemplateCache() async {
 
   await cacheDir.delete(recursive: true);
   print('🧹 Cleared template cache.');
+}
+
+//获取 mac 本地 .pub-cache/global_packages/cli目录
+String _getGlobalPackagesPath() {
+  return path.join(_getPubCachePath(), 'global_packages/cli');
+}
+String _getPubCachePath() {
+  final env = Platform.environment;
+  final home = env['HOME'] ?? env['USERPROFILE']; // macOS/Linux 或 Windows
+  if (home == null) throw Exception('无法确定主目录');
+
+  final pubCache = env['PUB_CACHE'] ?? path.join(home, '.pub-cache');
+  return pubCache;
 }
