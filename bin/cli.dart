@@ -18,7 +18,7 @@ void main(List<String> arguments) async {
     ..addFlag('generate', abbr: 'g', help: '导出当前目录下所有dart头文件生成index.dart', negatable: false)
     ..addFlag('md5', abbr: 'm', help: '批量修改当前目录下所有图片的MD5值', negatable: false)
     ..addFlag('delete', abbr: 'd', help: '自动删除未使用资源', negatable: false)
-    ..addFlag('create page:pageName', help: '创建flutter getX page', negatable: false)
+    ..addFlag('create page', help: '使用create page:pageName,创建flutter getX page,create ', negatable: false)
     ..addFlag('create common', help: '生成common目录命令', negatable: false);
 
   final results = parser.parse(arguments);
