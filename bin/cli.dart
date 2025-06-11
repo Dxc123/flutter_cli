@@ -8,81 +8,79 @@ import 'package:cli/cli_flutter_cleaner.dart';
 import 'package:cli/cli_flutter_gen_index.dart';
 import 'package:cli/cli_image_modify_md5.dart';
 import 'package:cli/utils/cli_load_template_util.dart';
+import 'package:cli/utils/cli_log_until.dart';
 
 void main(List<String> arguments) async {
   final parser = ArgParser()
     ..addFlag('help', abbr: 'h', help: '打印命令帮助信息', negatable: false)
     ..addFlag('version', abbr: 'v', help: '打印 CLI 工具版本', negatable: false)
     ..addFlag('clear', abbr: 'c', help: '删除 .template_cache 本地模板缓存', negatable: false)
-    ..addFlag('clean', abbr: 'l', help: '清理当前目录下所有Flutter项目以便释放更多磁盘空间', negatable: false)
-    ..addFlag('generate', abbr: 'g', help: '导出当前目录下所有dart头文件生成index.dart', negatable: false)
-    ..addFlag('md5', abbr: 'm', help: '批量修改当前目录下所有图片的MD5值', negatable: false)
-    ..addFlag('delete', abbr: 'd', help: '自动删除未使用资源', negatable: false)
-    ..addCommand('create')
-    ..addOption('page', abbr: 'p', help: 'Page name to create')
-    ..addOption('page:pageName', help: '使用create page:pageName,创建flutter getX page,create ')
-    ..addOption('common', help: '生成common目录命令');
+    ..addFlag('clean', abbr: 'l', help: '清理所有 Flutter 项目', negatable: false)
+    ..addFlag('generate', abbr: 'g', help: '导出所有 Dart 头文件生成 index.dart', negatable: false)
+    ..addFlag('md5', abbr: 'm', help: '批量修改图片 MD5 值', negatable: false)
+    ..addFlag('delete', abbr: 'd', help: '自动删除未使用资源', negatable: false);
+
+  final createCommand = ArgParser()
+    ..addOption('page', help: '创建 Flutter GetX 页面')
+    ..addOption('common', help: '生成 common 目录');
+
+  // 添加子命令
+  parser.addCommand('create', createCommand);
+
+  if (arguments.isEmpty) {
+    logError('未检测到参数，使用 --help 查看命令帮助');
+    print(parser.usage);
+    exit(0);
+  }
 
   final results = parser.parse(arguments);
 
-  if (results['help']) {
-    printUsage(parser);
+  if (results.wasParsed('help')) {
+    logInfo(parser.usage);
     exit(0);
   }
 
-  if (results['version']) {
-    printVersion();
+  if (results.wasParsed('version')) {
+    logInfo('CLI 版本: v1.0.0');
     exit(0);
   }
 
-  if (results['clear']) {
+  if (results.wasParsed('clear')) {
     await clearTemplateCache();
-    exit(0); // 清理完直接退出
+    exit(0);
   }
 
-  if (results['clean']) {
+  if (results.wasParsed('clean')) {
     await flutterClean();
-    exit(0); // 清理完直接退出
+    exit(0);
   }
-  if (results['generate']) {
+
+  if (results.wasParsed('generate')) {
     generateIndex();
-    exit(0); // 清理完直接退出
+    exit(0);
   }
-  if (results['md5']) {
+
+  if (results.wasParsed('md5')) {
     await imagesModifyMD5();
-    exit(0); // 清理完直接退出
+    exit(0);
   }
-  if (results['delete']) {
+
+  if (results.wasParsed('delete')) {
     await flutterDeleteUnusedAssets();
-    exit(0); // 清理完直接退出
+    exit(0);
   }
 
-  if (arguments.length < 2 || arguments.first != 'create') {
-    printUsage(parser);
-    exit(1);
+  if (results.command?.name == 'create') {
+    final String? page = results.command!['page'];
+    final String? common = results.command!['common'];
+    logSuccess('Create Command Called');
+    if (page != null) {
+      logSuccess('  → 创建页面: $page');
+      createPage(page);
+    }
+    if (common != null) {
+      logSuccess('  → 创建 common 目录');
+      await createCommonStructure();
+    }
   }
-
-  final command = arguments.sublist(1).join(' ');
-
-  if (command.startsWith('page:')) {
-    final pageName = command.split(':')[1];
-    createPage(pageName);
-  } else if (command.startsWith('common')) {
-    await createCommonStructure();
-  } else {
-    print('Invalid command format. Expected: create page:<pagename>');
-    printUsage(parser);
-    exit(1);
-  }
-}
-
-void printUsage(ArgParser parser) {
-  print('Usage:');
-  print('  cli [options] create page:<pagename>');
-  print('');
-  print(parser.usage);
-}
-
-void printVersion() {
-  print('cli version v1.0.0');
 }
