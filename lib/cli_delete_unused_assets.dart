@@ -20,7 +20,7 @@ Future<void> flutterDeleteUnusedAssets() async {
   final codeFolder = Directory('lib');
 
   if (!assetFolder.existsSync()) {
-    logInfo('❌ assets/ 文件夹不存在');
+    logError('❌ assets/ 文件夹不存在');
     exit(1);
   }
 
@@ -29,18 +29,35 @@ Future<void> flutterDeleteUnusedAssets() async {
     exit(1);
   }
 
-  final imageFiles = assetFolder.listSync(recursive: true).whereType<File>().where((f) => imageExtensions.any((ext) => f.path.toLowerCase().endsWith(ext))).toList();
+  // 检查是否为倍图文件夹路径
+  bool isInResolutionFolder(String path) {
+    return RegExp(r'[\\/](\d+(\.\d+)?x)[\\/]').hasMatch(path);
+  }
 
-  logInfo('🔍 共找到 ${imageFiles.length} 个图片资源...');
+  // 筛选图片资源：不包括 2.0x/3.0x 等路径
+  final imageFiles = assetFolder
+      .listSync(recursive: true)
+      .whereType<File>()
+      .where((f) =>
+  imageExtensions.any((ext) => f.path.toLowerCase().endsWith(ext)) &&
+      !isInResolutionFolder(f.path))
+      .toList();
 
-  final dartFiles = codeFolder.listSync(recursive: true).whereType<File>().where((f) => f.path.endsWith('.dart')).toList();
+  logInfo('🔍 共找到 ${imageFiles.length} 个非倍图图片资源...');
+
+  // 收集所有 Dart 文件内容
+  final dartFiles = codeFolder
+      .listSync(recursive: true)
+      .whereType<File>()
+      .where((f) => f.path.endsWith('.dart'))
+      .toList();
 
   final codeContent = dartFiles.map((f) => f.readAsStringSync()).join('\n');
 
   final unusedImages = <File>[];
 
   for (var imageFile in imageFiles) {
-    final relativePath = imageFile.path.replaceFirst(RegExp(r'^.*assets[\/\\]'), 'assets/');
+    final relativePath = imageFile.path.replaceFirst(RegExp(r'^.*assets[\\/]+'), 'assets/');
     final fileName = relativePath.split(Platform.pathSeparator).last;
 
     if (!codeContent.contains(relativePath) && !codeContent.contains(fileName)) {
@@ -58,12 +75,10 @@ Future<void> flutterDeleteUnusedAssets() async {
     return;
   }
 
-  // 导出列表
   final output = File('unused_assets.txt');
   output.writeAsStringSync(unusedImages.map((f) => f.path).join('\n'));
   logInfo('\n📄 未使用资源路径已导出到 unused_assets.txt');
 
-  // 是否删除
   stdout.write('\n⚠️ 是否删除这些未使用图片？（y/N）: ');
   final response = stdin.readLineSync()?.toLowerCase().trim();
 
