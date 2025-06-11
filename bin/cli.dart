@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:cli/cli_create_common.dart';
 import 'package:cli/cli_create_page.dart';
 import 'package:args/args.dart';
+import 'package:cli/cli_delete_unused_assets.dart';
 import 'package:cli/cli_flutter_cleaner.dart';
 import 'package:cli/cli_flutter_gen_index.dart';
 import 'package:cli/cli_image_modify_md5.dart';
@@ -50,7 +51,7 @@ void main(List<String> arguments) async {
     exit(0); // 清理完直接退出
   }
   if (results['delete']) {
-    await imagesModifyMD5();
+    await flutterDeleteUnusedAssets();
     exit(0); // 清理完直接退出
   }
 
