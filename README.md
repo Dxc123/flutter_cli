@@ -31,6 +31,11 @@ cli --generate或者cli -g
 批量修改当前目录下所有图片的 MD5 值命令:
 cli --md5或者cli -m
 
+删除未使用资源功能
+cli --delete或者cli -d
+
+cli generate icons
+
 打印命令帮助信息：
 cli --help / cli -h
 打印 CLI 工具版本：

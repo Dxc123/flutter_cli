@@ -15,7 +15,10 @@ void main(List<String> arguments) async {
     ..addFlag('clear', abbr: 'c', help: '删除 .template_cache 本地模板缓存', negatable: false)
     ..addFlag('clean', abbr: 'l', help: '清理当前目录下所有Flutter项目以便释放更多磁盘空间', negatable: false)
     ..addFlag('generate', abbr: 'g', help: '导出当前目录下所有dart头文件生成index.dart', negatable: false)
-    ..addFlag('md5', abbr: 'm', help: '批量修改当前目录下所有图片的MD5值', negatable: false);
+    ..addFlag('md5', abbr: 'm', help: '批量修改当前目录下所有图片的MD5值', negatable: false)
+    ..addFlag('create page:<pageName>', help: '创建flutter getX page', negatable: false)
+    ..addFlag('create common', help: '生成common目录命令', negatable: false)
+    ..addFlag('delete',abbr: 'd', help: '自动删除未使用资源', negatable: false);
 
   final results = parser.parse(arguments);
 
@@ -43,6 +46,10 @@ void main(List<String> arguments) async {
     exit(0); // 清理完直接退出
   }
   if (results['md5']) {
+    await imagesModifyMD5();
+    exit(0); // 清理完直接退出
+  }
+  if (results['delete']) {
     await imagesModifyMD5();
     exit(0); // 清理完直接退出
   }

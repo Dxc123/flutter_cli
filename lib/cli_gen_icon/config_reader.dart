@@ -1,10 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:path/path.dart' as path;
-import 'package:yaml/yaml.dart';
-import '../../../../common/utils/logger/log_utils.dart';
-import '../../../../common/utils/pubspec/pubspec_utils.dart';
+import '../utils/cli_log_until.dart';
 import 'icon_font_gen_config.dart';
+import 'pubspec_utils.dart';
 
 class ConfigReader {
   Future<(IconFontGenConfig?, String)> readIconConfig() async {
@@ -29,14 +28,14 @@ class ConfigReader {
       String assetsDist = "assets/icon_font";
       String fileDist = "lib/app/data/utils/icon_until.dart";
       final doc = PubspecUtils.pubspecJson;
-      LogService.info("pubspecJson = $doc");
+      logInfo("pubspecJson = $doc");
       Map<String, dynamic> docMap = {};
       try {
         docMap = json.decode(doc);
       } catch (e) {
         print("docMap解析失败,使用默认配置");
       }
-      LogService.info("pubspecMap = $docMap");
+      logInfo("pubspecMap = $docMap");
       if (docMap.containsKey('flutter_icons')) {
         configValues = docMap['flutter_icons'];
         if ((docMap['flutter_icons'] as Map).containsKey('src_zip')) {
@@ -68,22 +67,4 @@ class ConfigReader {
     return File(filePath).existsSync();
   }
 
-// Future<Map<String, dynamic>> _readYamlConfig(String yamlFilePath) async {
-//   // final yaml = await File(yamlFilePath).readAsString();
-//   // final doc = loadYaml(yaml);
-//   // return doc?['toly'] ?? {};
-//   final doc = PubspecUtils.pubspecJson;
-//   LogService.info("pubspecJson = $doc");
-//   if (doc.containsKey('toly')) {
-//     if ((doc['toly'] as Map).containsKey('src_zip')) {
-//       return (doc['toly'] as Map<String, dynamic>);
-//     }
-//   }
-//   return {};
-// }
-//
-// Future<String> _getConfigValue(String yamlFilePath, String key, String defaultValue) async {
-//   final configValues = await _readYamlConfig(yamlFilePath);
-//   return configValues[key] ?? defaultValue;
-// }
 }
