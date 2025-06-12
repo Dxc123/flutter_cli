@@ -14,8 +14,9 @@ dependencies:
   crypto: ^3.0.6 #加密
   archive: ^3.6.1 # 解压
   pubspec_parse: ">=1.3.0 <2.0.0" #解析 pubspec.yaml 文件
-  args: ^2.7.0
+  args: ^2.7.0 #命令行参数
   image: ^4.3.0
+  pool: ^1.5.1 #线程池
 
 dev_dependencies:
   lints: ^5.0.0

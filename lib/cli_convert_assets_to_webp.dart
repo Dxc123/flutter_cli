@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:cli/utils/cli_log_until.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
+import 'package:pool/pool.dart';
 
 final Set<String> convertedPngPaths = {}; // 只记录成功转换的 .png 文件路径
 
@@ -23,8 +24,10 @@ Future<void> flutterConvertAssetsToWebp() async {
   logSuccess('✅ 全部完成！');
 }
 
-Future<void> convertPngToWebp(Directory dir) async {
+Future<void> convertPngToWebp(Directory dir, {int concurrency = 6}) async {
   int total = 0, success = 0, fail = 0;
+  final pool = Pool(concurrency);
+  final tasks = <Future<void>>[];
 
   await for (var entity in dir.list(recursive: true)) {
     if (entity is File && entity.path.toLowerCase().endsWith('.png')) {
@@ -32,52 +35,69 @@ Future<void> convertPngToWebp(Directory dir) async {
       final pngPath = entity.path;
       final webpPath = pngPath.replaceAll(RegExp(r'\.png$', caseSensitive: false), '.webp');
 
-      if (File(webpPath).existsSync()) {
-        logInfo('⚠️ 已存在，跳过: $webpPath');
-        continue;
-      }
-
-      final bytes = await entity.readAsBytes();
-      final image = img.decodeImage(bytes);
-      if (image != null) {
-        final tempPngPath = '$pngPath.tmp.png';
-        final pngBytes = img.encodePng(image);
-        await File(tempPngPath).writeAsBytes(pngBytes);
-
-        ProcessResult result;
-        try {
-          result = await Process.run('cwebp', ['-q', '80', tempPngPath, '-o', webpPath]);
-        } on ProcessException {
-          logError('❌ 错误: 未找到 cwebp 命令');
-          logInfoInstallInstructions();
-          await File(tempPngPath).delete();
-          fail++;
-          continue;
+      final task = pool.withResource(() async {
+        if (File(webpPath).existsSync()) {
+          logInfo('⚠️ 已存在，跳过: $webpPath');
+          return;
         }
 
-        await File(tempPngPath).delete(); // 清理临时文件
+        try {
+          final bytes = await entity.readAsBytes();
+          final image = img.decodeImage(bytes);
+          if (image == null) {
+            logError('❌ 解码失败: $pngPath');
+            fail++;
+            return;
+          }
 
-        if (result.exitCode == 0) {
-          logInfo('✅ $pngPath → $webpPath');
-          success++;
-          convertedPngPaths.add(p.normalize(pngPath));
+          final tempPngPath = '$pngPath.tmp.png';
+          final pngBytes = img.encodePng(image);
+          await File(tempPngPath).writeAsBytes(pngBytes);
 
           try {
-            await entity.delete();
-            logInfo('🗑️ 已删除原 PNG 文件: $pngPath');
-          } catch (e) {
-            logInfo('⚠️ 删除失败: $pngPath - $e');
+            final result = await Process.run('cwebp', ['-q', '80', tempPngPath, '-o', webpPath]);
+
+            try {
+              await File(tempPngPath).delete();
+            } catch (e) {
+              logInfo('⚠️ 无法删除临时文件 $tempPngPath - $e');
+            }
+
+            if (result.exitCode == 0) {
+              logInfo('✅ $pngPath → $webpPath');
+              success++;
+              convertedPngPaths.add(p.normalize(p.absolute(pngPath)));
+
+              try {
+                await entity.delete();
+                logInfo('🗑️ 已删除原 PNG 文件: $pngPath');
+              } catch (e) {
+                logInfo('⚠️ 删除失败: $pngPath - $e');
+              }
+            } else {
+              logError('❌ 转换失败: ${result.stderr}');
+              fail++;
+            }
+          } on ProcessException {
+            logError('❌ 错误: 未找到 cwebp 命令');
+            logInfoInstallInstructions();
+            try {
+              await File(tempPngPath).delete();
+            } catch (_) {}
+            fail++;
           }
-        } else {
-          logError('❌ 转换失败: ${result.stderr}');
+        } catch (e) {
+          logError('❌ 异常: $pngPath - $e');
           fail++;
         }
-      } else {
-        logError('❌ 解码失败: $pngPath');
-        fail++;
-      }
+      });
+
+      tasks.add(task);
     }
   }
+
+  await Future.wait(tasks);
+  await pool.close();
 
   logInfo('\n📊 转换统计: 总数 $total, 成功 $success, 失败 $fail\n');
 }
