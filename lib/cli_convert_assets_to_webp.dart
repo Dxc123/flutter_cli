@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:image/image.dart' as img;
-import 'package:path/path.dart' as p;
 
 Future<void> flutterConvertAssetsToWebp() async {
   final assetsDir = Directory('assets');
@@ -21,49 +20,73 @@ Future<void> flutterConvertAssetsToWebp() async {
 }
 
 Future<void> convertPngToWebp(Directory dir) async {
+  int total = 0, success = 0, fail = 0;
+
   await for (var entity in dir.list(recursive: true)) {
     if (entity is File && entity.path.toLowerCase().endsWith('.png')) {
+      total++;
+      final pngPath = entity.path;
+      final webpPath = pngPath.replaceAll(RegExp(r'\.png$', caseSensitive: false), '.webp');
+
+      if (File(webpPath).existsSync()) {
+        print('⚠️ 已存在，跳过: $webpPath');
+        continue;
+      }
+
       final bytes = await entity.readAsBytes();
       final image = img.decodeImage(bytes);
       if (image != null) {
-        final pngPath = entity.path;
-        final webpPath = pngPath.replaceAll('.png', '.webp');
-
-        // 保存为临时 PNG 文件
         final tempPngPath = '$pngPath.tmp.png';
         final pngBytes = img.encodePng(image);
         await File(tempPngPath).writeAsBytes(pngBytes);
-        // Dart 库 image 无法编码 WebP 或存在兼容性问题
-        // 调用 cwebp 命令行工具转换为 WebP
-        // 前提条件:必须 安装 cwebp 工具
-        //macOS使用命令: brew install webp
+
         final result = await Process.run('cwebp', ['-q', '80', tempPngPath, '-o', webpPath]);
-        if (result.exitCode == 0) {
-          print('✅ $pngPath → $webpPath');
-        } else {
-          print('❌ 转换失败: ${result.stderr}');
-        }
 
         await File(tempPngPath).delete(); // 清理临时文件
+
+        if (result.exitCode == 0) {
+          print('✅ $pngPath → $webpPath');
+          success++;
+
+          // 删除原始 PNG 文件
+          try {
+            await entity.delete();
+            print('🗑️ 已删除原 PNG 文件: $pngPath');
+          } catch (e) {
+            print('⚠️ 删除失败: $pngPath - $e');
+          }
+        } else {
+          print('❌ 转换失败: ${result.stderr}');
+          fail++;
+        }
+      } else {
+        print('❌ 解码失败: $pngPath');
+        fail++;
       }
     }
   }
+
+  print('\n📊 转换统计: 总数 $total, 成功 $success, 失败 $fail\n');
 }
 
-
 Future<void> updateLibImageReferences(Directory dir) async {
+  final regExp = RegExp(r'''(["']assets[\/\\][^"']+?)\.png(["'])''');
+
   await for (var entity in dir.list(recursive: true)) {
     if (entity is File && entity.path.endsWith('.dart')) {
       String content = await entity.readAsString();
-      final regExp = RegExp(r'(["\']assets/[^"\']+?)\.png(["\'])') ; //// 实际运行没问题，但 IDE 报错
+
       final updatedContent = content.replaceAllMapped(
         regExp,
             (match) => '${match[1]}.webp${match[2]}',
       );
 
       if (content != updatedContent) {
+        final backupPath = '${entity.path}.bak';
+        await File(entity.path).copy(backupPath);
+
         await entity.writeAsString(updatedContent);
-        print('✏️ 更新路径: ${entity.path}');
+        print('✏️ 更新路径: ${entity.path}（已备份为 .bak）');
       }
     }
   }
