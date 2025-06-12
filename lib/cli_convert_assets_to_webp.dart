@@ -68,7 +68,7 @@ Future<void> convertPngToWebp(Directory dir, {int concurrency = 6}) async {
               success++;
               // 相对项目根路径（如 lib/、assets/）
               final relativePath = p.relative(pngPath, from: dir.path); // dir 是项目根路径
-              convertedPngPaths.add(p.normalize(p.absolute(relativePath)));
+              convertedPngPaths.add(relativePath);
 
               try {
                 await entity.delete();
