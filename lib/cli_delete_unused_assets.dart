@@ -30,10 +30,11 @@ Future<void> flutterDeleteUnusedAssets() async {
     exit(1);
   }
 
+  // 判断是否在 lib/ 中的 Dart 代码中被使用
   bool isInResolutionFolder(String path) {
     return RegExp(r'[\\/](\d+(\.\d+)?x)[\\/]').hasMatch(path);
   }
-
+  // 忽略目录
   bool shouldIgnorePath(String path) {
     return ignoreDirs.any((dir) => path.contains('${Platform.pathSeparator}$dir${Platform.pathSeparator}'));
   }

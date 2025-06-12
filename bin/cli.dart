@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:cli/cli_convert_assets_to_webp.dart';
 import 'package:cli/cli_create_common.dart';
 import 'package:cli/cli_create_page.dart';
 import 'package:args/args.dart';
@@ -18,6 +19,7 @@ void main(List<String> arguments) async {
     ..addFlag('clean', abbr: 'l', help: '清理所有 Flutter 项目', negatable: false)
     ..addFlag('generate', abbr: 'g', help: '生成 index.dart（导出 Dart 头文件）', negatable: false)
     ..addFlag('md5', abbr: 'm', help: '批量修改图片 MD5 值', negatable: false)
+    ..addFlag('webp',abbr: 'w', help: '批量修改asset目录下图片格式:png->webp,同时修改lib目录下代码引用', negatable: false)
     ..addFlag('delete', abbr: 'd', help: '自动删除未使用资源', negatable: false);
 
   // 子命令：create
@@ -65,6 +67,10 @@ void main(List<String> arguments) async {
 
   if (results.wasParsed('md5')) {
     await imagesModifyMD5();
+    exit(0);
+  }
+  if (results.wasParsed('webp')) {
+    await flutterConvertAssetsToWebp();
     exit(0);
   }
 

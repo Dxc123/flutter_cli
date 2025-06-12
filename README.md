@@ -32,6 +32,9 @@ cli --generate或者cli -g
 批量修改当前目录下所有图片的 MD5 值命令:
 cli --md5或者cli -m
 
+批量修改asset目录下图片格式:png->webp命令:
+cli --webp或者cli -w
+
 删除未使用资源功能
 cli --delete或者cli -d
 
