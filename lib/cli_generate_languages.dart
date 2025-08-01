@@ -10,15 +10,14 @@ const outputDir = 'lib/generated_languages';
 
 /// 读取Excel表格翻译内容生成对应的语言文件
 Future<void> generatedLanguages() async {
-  final inputExcel =  defaultExcelPath;
-  final inputFile = File(inputExcel);
-
-  if (!inputFile.existsSync()) {
+  final inputExcel = _findExcelFileWithNamePart('languages', 'lib/assets');
+  if (inputExcel == null) {
     print('❌ Excel 文件不存在: $inputExcel');
     print('请将确保目标文件路径为: lib/assets/languages.xlsx');
     exit(1);
   }
 
+  final inputFile = File(inputExcel);
   print('📥 正在读取 Excel 文件: $inputExcel');
 
   final bytes = inputFile.readAsBytesSync();
@@ -71,6 +70,16 @@ Future<void> generatedLanguages() async {
   }
 
   print('🎉 所有语言文件生成完成！');
+}
+
+/// 在指定目录查找包含指定名称的 Excel 文件
+String? _findExcelFileWithNamePart(String namePart, String dirPath) {
+  final dir = Directory(dirPath);
+  if (!dir.existsSync()) return null;
+
+  final files = dir.listSync().whereType<File>().where((f) => f.path.toLowerCase().endsWith('.xlsx') && p.basename(f.path).toLowerCase().contains(namePart.toLowerCase())).toList();
+
+  return files.isNotEmpty ? files.first.path : null;
 }
 
 String _escape(String input) {

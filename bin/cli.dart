@@ -22,7 +22,7 @@ void main(List<String> arguments) async {
     ..addFlag('md5', abbr: 'm', help: '批量修改图片 MD5 值', negatable: false)
     ..addFlag('webp',abbr: 'w', help: '批量修改asset目录下图片格式:png->webp,同时修改lib目录下代码引用', negatable: false)
     ..addFlag('delete', abbr: 'd', help: '自动删除未使用资源', negatable: false)
-    ..addFlag('excel', abbr: 'e', help: '根据Excel表格内容生成对应的语言文件', negatable: false);
+    ..addFlag('excel', abbr: 'e', help: '读取Excel表格翻译内容生成对应的语言文件', negatable: false);
 
   // 子命令：create
   final createCommand = ArgParser()
