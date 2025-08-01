@@ -38,6 +38,10 @@ cli --webp或者cli -w
 删除未使用资源功能
 cli --delete或者cli -d
 
+读取Excel表格翻译内容生成对应的语言文件
+cli --excel或者cli -e
+
+
 cli generate icons
 
 打印命令帮助信息：

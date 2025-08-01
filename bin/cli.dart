@@ -7,6 +7,7 @@ import 'package:args/args.dart';
 import 'package:cli/cli_delete_unused_assets.dart';
 import 'package:cli/cli_flutter_cleaner.dart';
 import 'package:cli/cli_flutter_gen_index.dart';
+import 'package:cli/cli_generate_languages.dart';
 import 'package:cli/cli_image_modify_md5.dart';
 import 'package:cli/utils/cli_load_template_util.dart';
 import 'package:cli/utils/cli_log_until.dart';
@@ -20,7 +21,8 @@ void main(List<String> arguments) async {
     ..addFlag('generate', abbr: 'g', help: '生成 index.dart（导出 Dart 头文件）', negatable: false)
     ..addFlag('md5', abbr: 'm', help: '批量修改图片 MD5 值', negatable: false)
     ..addFlag('webp',abbr: 'w', help: '批量修改asset目录下图片格式:png->webp,同时修改lib目录下代码引用', negatable: false)
-    ..addFlag('delete', abbr: 'd', help: '自动删除未使用资源', negatable: false);
+    ..addFlag('delete', abbr: 'd', help: '自动删除未使用资源', negatable: false)
+    ..addFlag('excel', abbr: 'e', help: '根据Excel表格内容生成对应的语言文件', negatable: false);
 
   // 子命令：create
   final createCommand = ArgParser()
@@ -76,6 +78,11 @@ void main(List<String> arguments) async {
 
   if (results.wasParsed('delete')) {
     await flutterDeleteUnusedAssets();
+    exit(0);
+  }
+
+  if (results.wasParsed('excel')) {
+    await generatedLanguages();
     exit(0);
   }
 

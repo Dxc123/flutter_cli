@@ -17,6 +17,7 @@ dependencies:
   args: ^2.7.0 #命令行参数
   image: ^4.3.0
   pool: ^1.5.1 #线程池
+  excel: ^4.0.6 #Excel解析
 
 dev_dependencies:
   lints: ^5.0.0
