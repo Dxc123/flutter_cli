@@ -10,10 +10,10 @@ const outputDir = 'lib/generated_languages';
 
 /// 读取Excel表格翻译内容生成对应的语言文件
 Future<void> generatedLanguages() async {
-  final inputExcel = _findExcelFileWithNamePart('languages', 'lib/assets');
+  final inputExcel = _findExcelFileWithNamePart('languages', 'assets');
   if (inputExcel == null) {
     print('❌ Excel 文件不存在: $inputExcel');
-    print('请将确保目标文件路径为: lib/assets/languages.xlsx');
+    print('请将确保目标文件路径为: assets/languages.xlsx');
     exit(1);
   }
 
