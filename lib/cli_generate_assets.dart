@@ -52,28 +52,38 @@ bool _isResolutionFolder(String path) {
 Future<void> addAssetsToPubspec(List<String> folders) async {
   final file = File('pubspec.yaml');
   if (!file.existsSync()) {
-    logError('pubspec.yaml not found.');
+    logError('❌ pubspec.yaml not found.');
     return;
   }
 
-  final doc = file.readAsStringSync();
-  final editor = YamlEditor(doc);
-  final yaml = loadYaml(doc);
+  final content = file.readAsStringSync();
+  final doc = loadYaml(content);
+  final editor = YamlEditor(content);
 
-  final currentAssets = List<String>.from(
-    (yaml['flutter']?['assets'] ?? []).map((e) => e.toString()),
-  );
+  // 获取当前已存在的 asset 路径
+  final currentAssets = <String>[
+    ...(doc['flutter']?['assets'] ?? const []).map((e) => e.toString())
+  ];
 
   final toAdd = folders.where((e) => !currentAssets.contains(e)).toList();
   if (toAdd.isEmpty) {
-    logError('No new folders to add.');
+    logSuccess('✅ 没有新的 assets 目录需要添加');
     return;
   }
 
-  final newAssets = [...currentAssets, ...toAdd]..sort();
+  final allAssets = [...currentAssets, ...toAdd]..sort();
 
-  editor.update(['flutter', 'assets'], newAssets);
+  try {
+    // 若 flutter: 不存在，先创建
+    if (doc['flutter'] == null) {
+      editor.update(['flutter'], {'assets': allAssets});
+    } else {
+      editor.update(['flutter', 'assets'], allAssets);
+    }
 
-  await file.writeAsString(editor.toString());
-  logSuccess('Added ${toAdd.length} asset folders to pubspec.yaml');
+    await file.writeAsString(editor.toString());
+    logSuccess('✅ 已添加 ${toAdd.length} 个 assets 目录到 pubspec.yaml');
+  } catch (e) {
+    logError('❌ 更新 pubspec.yaml 出错: $e');
+  }
 }

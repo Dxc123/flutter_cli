@@ -41,6 +41,9 @@ cli --delete或者cli -d
 读取Excel表格翻译内容生成对应的语言文件
 cli --excel或者cli -e
 
+自动扫描 assets文件夹以及其子文件夹并写入 pubspec.yaml
+cli --assets或者cli -a
+
 
 cli generate icons
 
