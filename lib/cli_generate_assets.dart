@@ -5,48 +5,35 @@ import 'package:yaml_edit/yaml_edit.dart';
 
 import 'utils/cli_log_until.dart';
 
+/// 只扫描当前项目根目录下的 assets/ 文件夹及其子文件夹
+/// 忽略 2.0x、3.0x 等高分辨率文件夹
 Future<void> scanAndAddAssetFolders() async {
-  final currentDir = Directory.current;
-  logInfo('Scanning directory: ${currentDir.path}');
-  final allAssetFolders = <String>{};
+  final assetsDir = Directory('assets');
 
-  await for (final entity in currentDir.list(recursive: true, followLinks: false)) {
-    if (entity is Directory && p.basename(entity.path) == 'assets') {
-      // 扫描该 assets 文件夹及其子目录
-      final assetFolders = await _collectSubFolders(entity);
-      allAssetFolders.addAll(assetFolders);
-    }
-  }
-
-  if (allAssetFolders.isEmpty) {
-    logError('⚠️ 未找到任何 assets 文件夹');
+  if (!await assetsDir.exists()) {
+    logError('⚠️ 目录 "assets/" 不存在，跳过扫描。');
     return;
   }
 
-  await addAssetsToPubspec(allAssetFolders.toList());
-}
-
-Future<List<String>> _collectSubFolders(Directory baseDir) async {
-  final folders = <String>{};
-
-  await for (final entity in baseDir.list(recursive: true, followLinks: false)) {
+  final folderSet = <String>{};
+  await for (var entity in assetsDir.list(recursive: true, followLinks: false)) {
     if (entity is Directory) {
-      final relativePath = p.relative(entity.path, from: Directory.current.path);
-      if (!_isResolutionFolder(relativePath)) {
-        folders.add('$relativePath/');
-      }
+      final folderName = p.basename(entity.path);
+      // 跳过高分辨率文件夹，如 2.0x、3.0x 等
+      if (_isResolutionFolder(folderName)) continue;
+      final relative = p.relative(entity.path, from: Directory.current.path);
+      folderSet.add('$relative/');
     }
   }
-
-  // 添加根 assets 文件夹自身路径
-  final rootRelative = p.relative(baseDir.path, from: Directory.current.path);
-  folders.add('$rootRelative/');
-
-  return folders.toList();
+  // 添加根 assets 文件夹自身
+  folderSet.add('assets/');
+  final folderList = folderSet.toList()..sort();
+  await addAssetsToPubspec(folderList);
 }
 
-bool _isResolutionFolder(String path) {
-  return path.contains(RegExp(r'/[23]\.0x/'));
+/// 是否为 2.0x/3.0x/4.0x 等高分辨率文件夹
+bool _isResolutionFolder(String folderName) {
+  return RegExp(r'^[0-9](\.0)?x$').hasMatch(folderName);
 }
 
 Future<void> addAssetsToPubspec(List<String> folders) async {
@@ -61,9 +48,7 @@ Future<void> addAssetsToPubspec(List<String> folders) async {
   final editor = YamlEditor(content);
 
   // 获取当前已存在的 asset 路径
-  final currentAssets = <String>[
-    ...(doc['flutter']?['assets'] ?? const []).map((e) => e.toString())
-  ];
+  final currentAssets = <String>[...(doc['flutter']?['assets'] ?? const []).map((e) => e.toString())];
 
   final toAdd = folders.where((e) => !currentAssets.contains(e)).toList();
   if (toAdd.isEmpty) {
