@@ -87,9 +87,15 @@ Future<void> generateAssets() async {
 }
 
 String _generateVariableName(String path) {
-  final name = path.replaceAll(RegExp(r'[^a-zA-Z0-9/_]'), '_').replaceAll('/', '_').replaceAll('__', '_').replaceAll(RegExp(r'\.([a-zA-Z0-9]+)$'), '');
+  String noAssetsPrefix = path.startsWith('assets/') ? path.substring(7) : path;
+  final name = noAssetsPrefix
+      .replaceAll(RegExp(r'[^a-zA-Z0-9/_]'), '_') // 非字母数字替换为 _
+      .replaceAll('/', '_') // 文件夹斜杠替换为 _
+      .replaceAll('__', '_') // 双下划线合并
+      .replaceAll(RegExp(r'\.([a-zA-Z0-9]+)$'), ''); // 去掉扩展名
   return name.startsWith(RegExp(r'\d')) ? '_$name' : name;
 }
+
 
 String _md5(String input) => md5.convert(utf8.encode(input)).toString();
 
