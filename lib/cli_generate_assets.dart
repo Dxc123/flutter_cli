@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
+import 'dart:convert'; // for utf8 and md5
+import 'package:crypto/crypto.dart'; // 需要添加依赖：crypto
 
 import 'utils/cli_log_until.dart';
 
@@ -16,7 +18,7 @@ Future<void> generateAssets() async {
   final assetsList = flutterSection?['assets'] as YamlList?;
 
   if (assetsList == null || assetsList.isEmpty) {
-    logError('⚠️ 未在 pubspec.yaml 中配置 assets');
+    logError('⚠️ pubspec.yaml 中未配置 flutter.assets');
     exit(0);
   }
 
@@ -32,7 +34,7 @@ Future<void> generateAssets() async {
         .where((file) {
       final relative = p.relative(file.path, from: assetPath);
       final parts = p.split(relative);
-      return !parts.any((part) => part.endsWith('x'));
+      return !parts.any((part) => RegExp(r'^\d+(\.\d+)?x$').hasMatch(part));
     })
         .map((file) => p.join(assetPath, p.relative(file.path, from: assetPath)).replaceAll(r'\', '/'));
 
@@ -56,17 +58,28 @@ Future<void> generateAssets() async {
   }
 
   final outputFile = File(p.join(outputDir.path, 'assets.dart'));
-  outputFile.writeAsStringSync(buffer.toString());
+  final newContent = buffer.toString();
 
-  logSuccess('✅ 成功生成: lib/generated/assets.dart');
+  // 如果已有文件内容一致，则跳过写入
+  if (outputFile.existsSync()) {
+    final oldContent = outputFile.readAsStringSync();
+    if (_md5(oldContent) == _md5(newContent)) {
+      logInfo('✅ 资源文件未变更，无需更新: ${outputFile.path}');
+      return;
+    }
+  }
+
+  outputFile.writeAsStringSync(newContent);
+  logSuccess('✅ 资源文件已更新: ${outputFile.path}');
 }
 
-/// 将路径转为合法的 Dart 静态变量名
 String _generateVariableName(String path) {
-  final fileName = path
+  final name = path
       .replaceAll(RegExp(r'[^a-zA-Z0-9/_]'), '_')
       .replaceAll('/', '_')
-      .replaceAll('__', '_');
-  final name = fileName.replaceAll(RegExp(r'\.([a-zA-Z0-9]+)$'), '');
-  return name.startsWith(RegExp(r'[0-9]')) ? '_$name' : name;
+      .replaceAll('__', '_')
+      .replaceAll(RegExp(r'\.([a-zA-Z0-9]+)$'), '');
+  return name.startsWith(RegExp(r'\d')) ? '_$name' : name;
 }
+
+String _md5(String input) => md5.convert(utf8.encode(input)).toString();
