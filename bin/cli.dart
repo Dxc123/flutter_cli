@@ -89,7 +89,7 @@ void main(List<String> arguments) async {
     await generatedLanguages();
     exit(0);
   }
-  if (results.wasParsed('assets')) {
+  if (results.wasParsed('scan')) {
     await scanAndAddAssetFolders();
     exit(0);
   }
