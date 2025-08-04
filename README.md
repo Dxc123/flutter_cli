@@ -41,7 +41,10 @@ cli --delete或者cli -d
 读取Excel表格翻译内容生成对应的语言文件
 cli --excel或者cli -e
 
-自动扫描 assets文件夹以及其子文件夹并写入 pubspec.yaml
+自动扫描资源assets文件夹以及其子文件夹并写入 pubspec.yaml
+cli --scan或者cli -s
+
+读取 pubspec.yaml 中 flutter.assets 配，并将assets下的资源生成 Dart 静态资源类 Assets
 cli --assets或者cli -a
 
 

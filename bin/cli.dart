@@ -9,6 +9,7 @@ import 'package:cli/cli_flutter_cleaner.dart';
 import 'package:cli/cli_flutter_gen_index.dart';
 import 'package:cli/cli_generate_assets.dart';
 import 'package:cli/cli_generate_languages.dart';
+import 'package:cli/cli_generate_scan_add_asset_folders.dart';
 import 'package:cli/cli_image_modify_md5.dart';
 import 'package:cli/utils/cli_load_template_util.dart';
 import 'package:cli/utils/cli_log_until.dart';
@@ -24,7 +25,8 @@ void main(List<String> arguments) async {
     ..addFlag('webp',abbr: 'w', help: '批量修改asset目录下图片格式:png->webp,同时修改lib目录下代码引用', negatable: false)
     ..addFlag('delete', abbr: 'd', help: '自动删除未使用资源', negatable: false)
     ..addFlag('excel', abbr: 'e', help: '读取Excel表格翻译内容生成对应的语言文件', negatable: false)
-    ..addFlag('assets', abbr: 'a', help: '自动扫描 assets文件夹以及其子文件夹并写入 pubspec.yaml', negatable: false);
+    ..addFlag('scan', abbr: 's', help: '自动扫描资源assets文件夹以及其子文件夹并写入 pubspec.yaml', negatable: false)
+    ..addFlag('assets', abbr: 'a', help: '读取 pubspec.yaml 中 flutter.assets 配，并将assets下的资源生成 Dart 静态资源类 Assets', negatable: false);
 
   // 子命令：create
   final createCommand = ArgParser()
@@ -89,6 +91,10 @@ void main(List<String> arguments) async {
   }
   if (results.wasParsed('assets')) {
     await scanAndAddAssetFolders();
+    exit(0);
+  }
+  if (results.wasParsed('assets')) {
+    await generateAssets();
     exit(0);
   }
 

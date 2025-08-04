@@ -1,74 +1,72 @@
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
-import 'package:yaml_edit/yaml_edit.dart';
 
 import 'utils/cli_log_until.dart';
 
-/// 只扫描当前项目根目录下的 assets/ 文件夹及其子文件夹
-/// 忽略 2.0x、3.0x 等高分辨率文件夹
-Future<void> scanAndAddAssetFolders() async {
-  final assetsDir = Directory('assets');
-
-  if (!await assetsDir.exists()) {
-    logError('⚠️ 目录 "assets/" 不存在，跳过扫描。');
-    return;
+Future<void> generateAssets() async {
+  final pubspecFile = File('pubspec.yaml');
+  if (!pubspecFile.existsSync()) {
+    logError('❌ pubspec.yaml 文件不存在');
+    exit(1);
   }
 
-  final folderSet = <String>{};
-  await for (var entity in assetsDir.list(recursive: true, followLinks: false)) {
-    if (entity is Directory) {
-      final folderName = p.basename(entity.path);
-      // 跳过高分辨率文件夹，如 2.0x、3.0x 等
-      if (_isResolutionFolder(folderName)) continue;
-      final relative = p.relative(entity.path, from: Directory.current.path);
-      folderSet.add('$relative/');
-    }
+  final pubspec = loadYaml(pubspecFile.readAsStringSync());
+  final flutterSection = pubspec['flutter'] as YamlMap?;
+  final assetsList = flutterSection?['assets'] as YamlList?;
+
+  if (assetsList == null || assetsList.isEmpty) {
+    logError('⚠️ 未在 pubspec.yaml 中配置 assets');
+    exit(0);
   }
-  // 添加根 assets 文件夹自身
-  folderSet.add('assets/');
-  final folderList = folderSet.toList()..sort();
-  await addAssetsToPubspec(folderList);
+
+  final assetFiles = <String>{};
+
+  for (var assetPath in assetsList) {
+    final dir = Directory(assetPath);
+    if (!dir.existsSync()) continue;
+
+    final files = dir
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((file) {
+      final relative = p.relative(file.path, from: assetPath);
+      final parts = p.split(relative);
+      return !parts.any((part) => part.endsWith('x'));
+    })
+        .map((file) => p.join(assetPath, p.relative(file.path, from: assetPath)).replaceAll(r'\', '/'));
+
+    assetFiles.addAll(files);
+  }
+
+  final buffer = StringBuffer();
+  buffer.writeln('// GENERATED CODE - DO NOT MODIFY BY HAND');
+  buffer.writeln('// ignore_for_file: constant_identifier_names');
+  buffer.writeln('');
+  buffer.writeln('class Assets {');
+  for (var path in assetFiles.toList()..sort()) {
+    final variableName = _generateVariableName(path);
+    buffer.writeln("  static const String $variableName = '$path';");
+  }
+  buffer.writeln('}');
+
+  final outputDir = Directory('lib/generated');
+  if (!outputDir.existsSync()) {
+    outputDir.createSync(recursive: true);
+  }
+
+  final outputFile = File(p.join(outputDir.path, 'assets.dart'));
+  outputFile.writeAsStringSync(buffer.toString());
+
+  logSuccess('✅ 成功生成: lib/generated/assets.dart');
 }
 
-/// 是否为 2.0x/3.0x/4.0x 等高分辨率文件夹
-bool _isResolutionFolder(String folderName) {
-  return RegExp(r'^[0-9](\.0)?x$').hasMatch(folderName);
-}
-
-Future<void> addAssetsToPubspec(List<String> folders) async {
-  final file = File('pubspec.yaml');
-  if (!file.existsSync()) {
-    logError('❌ pubspec.yaml not found.');
-    return;
-  }
-
-  final content = file.readAsStringSync();
-  final doc = loadYaml(content);
-  final editor = YamlEditor(content);
-
-  // 获取当前已存在的 asset 路径
-  final currentAssets = <String>[...(doc['flutter']?['assets'] ?? const []).map((e) => e.toString())];
-
-  final toAdd = folders.where((e) => !currentAssets.contains(e)).toList();
-  if (toAdd.isEmpty) {
-    logSuccess('✅ 没有新的 assets 目录需要添加');
-    return;
-  }
-
-  final allAssets = [...currentAssets, ...toAdd]..sort();
-
-  try {
-    // 若 flutter: 不存在，先创建
-    if (doc['flutter'] == null) {
-      editor.update(['flutter'], {'assets': allAssets});
-    } else {
-      editor.update(['flutter', 'assets'], allAssets);
-    }
-
-    await file.writeAsString(editor.toString());
-    logSuccess('✅ 已添加 ${toAdd.length} 个 assets 目录到 pubspec.yaml');
-  } catch (e) {
-    logError('❌ 更新 pubspec.yaml 出错: $e');
-  }
+/// 将路径转为合法的 Dart 静态变量名
+String _generateVariableName(String path) {
+  final fileName = path
+      .replaceAll(RegExp(r'[^a-zA-Z0-9/_]'), '_')
+      .replaceAll('/', '_')
+      .replaceAll('__', '_');
+  final name = fileName.replaceAll(RegExp(r'\.([a-zA-Z0-9]+)$'), '');
+  return name.startsWith(RegExp(r'[0-9]')) ? '_$name' : name;
 }
