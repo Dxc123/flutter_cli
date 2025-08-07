@@ -35,6 +35,9 @@ cli --md5或者cli -m
 批量修改asset目录下图片格式:png->webp命令:
 cli --webp或者cli -w
 
+根据x3图片自动生成x1和x2图片命令:
+cli --x1x2或者cli -x
+
 删除未使用资源功能
 cli --delete或者cli -d
 

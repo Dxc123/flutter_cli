@@ -10,6 +10,7 @@ import 'package:cli/cli_flutter_gen_index.dart';
 import 'package:cli/cli_generate_assets.dart';
 import 'package:cli/cli_generate_languages.dart';
 import 'package:cli/cli_generate_scan_add_asset_folders.dart';
+import 'package:cli/cli_generate_x1_2x_pic.dart';
 import 'package:cli/cli_image_modify_md5.dart';
 import 'package:cli/utils/cli_load_template_util.dart';
 import 'package:cli/utils/cli_log_until.dart';
@@ -20,13 +21,14 @@ void main(List<String> arguments) async {
     ..addFlag('version', abbr: 'v', help: '打印 CLI 工具版本', negatable: false)
     ..addFlag('clear', abbr: 'c', help: '清除模板缓存 .template_cache', negatable: false)
     ..addFlag('clean', abbr: 'l', help: '清理所有 Flutter 项目', negatable: false)
-    ..addFlag('generate', abbr: 'g', help: '生成 index.dart（导出 Dart 头文件）', negatable: false)
-    ..addFlag('md5', abbr: 'm', help: '批量修改图片 MD5 值', negatable: false)
+    ..addFlag('generate', abbr: 'g', help: '生成 index.dart(导出Dart头文件)', negatable: false)
+    ..addFlag('md5', abbr: 'm', help: '批量修改asset目录下图片MD5值', negatable: false)
     ..addFlag('webp',abbr: 'w', help: '批量修改asset目录下图片格式:png->webp,同时修改lib目录下代码引用', negatable: false)
-    ..addFlag('delete', abbr: 'd', help: '自动删除未使用资源', negatable: false)
+    ..addFlag('x1x2',abbr: 'x', help: '根据x3图片自动生成x1和x2图片', negatable: false)
+    ..addFlag('delete', abbr: 'd', help: '批量删除asset目录下未使用资源', negatable: false)
     ..addFlag('excel', abbr: 'e', help: '读取Excel表格翻译内容生成对应的语言文件', negatable: false)
-    ..addFlag('scan', abbr: 's', help: '自动扫描资源assets文件夹以及其子文件夹并写入 pubspec.yaml', negatable: false)
-    ..addFlag('assets', abbr: 'a', help: '读取 pubspec.yaml 中 flutter.assets 配，并将assets下的资源生成 Dart 静态资源类 Assets', negatable: false);
+    ..addFlag('scan', abbr: 's', help: '将assets路径自动加入pubspec.yaml', negatable: false)
+    ..addFlag('assets', abbr: 'a', help: '将assets下的资源生成Dart静态资源类文件Assets.dart', negatable: false);
 
   // 子命令：create
   final createCommand = ArgParser()
@@ -77,6 +79,10 @@ void main(List<String> arguments) async {
   }
   if (results.wasParsed('webp')) {
     await flutterConvertAssetsToWebp();
+    exit(0);
+  }
+  if (results.wasParsed('x1x2')) {
+    await generateX1_2xPic();
     exit(0);
   }
 
