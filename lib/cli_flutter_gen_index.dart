@@ -23,6 +23,7 @@ List<File> getDartFiles(Directory directory) {
       .whereType<File>()
       .where((file) => file.path.endsWith('.dart'))
       .where((file) => !file.path.endsWith('index.dart')) // 排除 index.dart
+      .where((file) => !file.path.endsWith('.g.dart')) // 排除 .g.dart
       .toList();
 }
 
