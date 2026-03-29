@@ -26,7 +26,7 @@ void main(List<String> arguments) async {
     ..addFlag('webp',abbr: 'w', help: '批量修改asset目录下图片格式:png->webp,同时修改lib目录下代码引用', negatable: false)
     ..addFlag('x1x2',abbr: 'x', help: '根据x3图片自动生成x1和x2图片', negatable: false)
     ..addFlag('delete', abbr: 'd', help: '批量删除asset目录下未使用资源', negatable: false)
-    ..addFlag('excel', abbr: 'e', help: '读取Excel表格翻译内容生成对应的语言文件', negatable: false)
+    ..addFlag('excel', abbr: 'e', help: '读取asset目录下Excel表格(asset/languages.xlsx)翻译内容生成对应的语言文件', negatable: false)
     ..addFlag('scan', abbr: 's', help: '将assets路径自动加入pubspec.yaml', negatable: false)
     ..addFlag('assets', abbr: 'a', help: '将assets下的资源生成Dart静态资源类文件Assets.dart', negatable: false);
 
