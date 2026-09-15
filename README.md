@@ -32,7 +32,7 @@ cli --generate或者cli -g
 批量修改当前目录下所有图片的 MD5 值命令:
 cli --md5或者cli -m
 
-批量修改asset目录下图片格式:png->webp命令:
+批量修改当前目录及其子目录下所有图片格式:png->webp命令:
 cli --webp或者cli -w
 
 根据x3图片自动生成x1和x2图片命令:
@@ -57,4 +57,3 @@ cli generate icons
 cli --help / cli -h
 打印 CLI 工具版本：
 cli --version / cli -v
-

@@ -7,16 +7,16 @@ import 'package:pool/pool.dart';
 final Set<String> convertedPngPaths = {}; // 只记录成功转换的 .png 文件路径
 
 Future<void> flutterConvertAssetsToWebp() async {
-  final assetsDir = Directory('assets');
+  final currentDir = Directory.current;
   final libDir = Directory('lib');
 
-  if (!assetsDir.existsSync()) {
-    logError('❌ assets 文件夹不存在');
+  if (!currentDir.existsSync()) {
+    logError('❌ 当前目录不存在');
     return;
   }
 
   logInfo('🔍 开始转换 PNG 为 WebP...');
-  await convertPngToWebp(assetsDir);
+  await convertPngToWebp(currentDir);
 
   logInfo('🔁 开始修改 lib 中图片引用...');
   await updateLibImageReferences(libDir);
@@ -33,7 +33,8 @@ Future<void> convertPngToWebp(Directory dir, {int concurrency = 6}) async {
     if (entity is File && entity.path.toLowerCase().endsWith('.png')) {
       total++;
       final pngPath = entity.path;
-      final webpPath = pngPath.replaceAll(RegExp(r'\.png$', caseSensitive: false), '.webp');
+      final webpPath =
+          pngPath.replaceAll(RegExp(r'\.png$', caseSensitive: false), '.webp');
 
       final task = pool.withResource(() async {
         if (File(webpPath).existsSync()) {
@@ -55,7 +56,8 @@ Future<void> convertPngToWebp(Directory dir, {int concurrency = 6}) async {
           await File(tempPngPath).writeAsBytes(pngBytes);
 
           try {
-            final result = await Process.run('cwebp', ['-q', '80', tempPngPath, '-o', webpPath]);
+            final result = await Process.run(
+                'cwebp', ['-q', '80', tempPngPath, '-o', webpPath]);
 
             try {
               await File(tempPngPath).delete();
@@ -68,7 +70,8 @@ Future<void> convertPngToWebp(Directory dir, {int concurrency = 6}) async {
               success++;
               //pngPath加入convertedPngPaths数组(忽略倍图的路径 eg: xxx@2x.png)
               // 忽略倍图路径（如 xxx@2x.png 或 xxx@3x.png）
-              if (!RegExp(r'@[\dx]+\.png$', caseSensitive: false).hasMatch(pngPath)) {
+              if (!RegExp(r'@[\dx]+\.png$', caseSensitive: false)
+                  .hasMatch(pngPath)) {
                 convertedPngPaths.add(pngPath);
               }
 
@@ -116,7 +119,8 @@ void logInfoInstallInstructions() {
     logInfo('👉 Ubuntu/Debian: sudo apt install webp');
     logInfo('👉 RedHat/CentOS: sudo yum install libwebp-tools');
   } else {
-    logInfo('👉 请前往 https://developers.google.com/speed/webp/download 下载并安装适合你平台的 WebP 工具。');
+    logInfo(
+        '👉 请前往 https://developers.google.com/speed/webp/download 下载并安装适合你平台的 WebP 工具。');
   }
 }
 
@@ -146,4 +150,3 @@ Future<void> updateLibImageReferences(Directory dir) async {
     }
   }
 }
-
