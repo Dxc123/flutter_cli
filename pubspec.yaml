@@ -1,5 +1,5 @@
 name: cli
-description: A demo for creating a CLI tool with Dart.
+description: A command-line toolkit for Flutter GetX projects.
 version: 1.0.0
 # repository: https://github.com/my_org/my_repo
 
@@ -8,7 +8,6 @@ environment:
 
 # Add regular dependencies here.
 dependencies:
-  dcli: ^7.0.3
   http: ^1.4.0
   path: ^1.9.1
   crypto: ^3.0.6 #加密
@@ -18,7 +17,6 @@ dependencies:
   image: ^4.3.0
   pool: ^1.5.1 #线程池
   excel: ^4.0.6 #Excel解析
-  spreadsheet_decoder: ^2.3.0 #Excel解析
   yaml_edit: ^2.2.2 #yaml编辑
   yaml: ^3.1.3 #yaml解析
 
@@ -29,7 +27,3 @@ dev_dependencies:
 
 executables:
   cli: cli
-
-# Include templates in the package
-include:
-  - lib/templates/page/

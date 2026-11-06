@@ -1,0 +1,20 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - name: Install cwebp
+        run: sudo apt-get update && sudo apt-get install -y webp
+      - run: dart pub get
+      - run: dart analyze --fatal-infos
+      - run: dart test

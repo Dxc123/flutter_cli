@@ -1,6 +1,6 @@
-This is a demo project to show how to create CLI using Dart.
+Flutter GetX 项目的 Dart 命令行工具。
 
-dart cli工具
+模板在运行时从 https://github.com/Dxc123/flutter_getx_template 下载并缓存。
 
 
 从git仓库安装到本地：(需要Flutter环境)

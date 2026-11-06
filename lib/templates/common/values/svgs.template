@@ -1,3 +1,0 @@
-/// svgs assets
-class AssetsSvgs {
-}

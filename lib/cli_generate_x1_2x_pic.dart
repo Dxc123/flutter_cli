@@ -67,7 +67,7 @@ Future<void> _processImage(File file) async {
   await File(x1Path).writeAsBytes(encodeImage(image1x, originPath));
   await File(x2Path).writeAsBytes(encodeImage(image2x, originPath));
 
-  logSuccess('✅ ${relPath} => 1.0x / 2.0x 生成成功');
+  logSuccess('✅ $relPath => 1.0x / 2.0x 生成成功');
 }
 
 List<int> encodeImage(Image image, String path) {

@@ -9,7 +9,7 @@ Future<String?> loadTemplateFromGithub(
 }) async {
   /// 缓存目录
   ///Users/daixingchuang/.pub-cache/global_packages/cli/.template_cache
-  final cacheDir = Directory(path.join(_getGlobalPackagesPath() ?? Directory.current.path, '.template_cache'));
+  final cacheDir = Directory(path.join(_getGlobalPackagesPath(), '.template_cache'));
   final localPath = path.join(cacheDir.path, templatePath);
   final localFile = File(localPath);
 
@@ -48,7 +48,7 @@ Future<String?> loadTemplateFromGithub(
 
 /// 清理本地模板缓存
 Future<void> clearTemplateCache() async {
-  final cacheDir = Directory(path.join(_getGlobalPackagesPath() ?? Directory.current.path, '.template_cache'));
+  final cacheDir = Directory(path.join(_getGlobalPackagesPath(), '.template_cache'));
 
   if (!await cacheDir.exists()) {
     print('📭 No cache to clear.');

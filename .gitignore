@@ -1,3 +1,9 @@
 # https://dart.dev/guides/libraries/private-files
 # Created by `dart pub`
 .dart_tool/
+
+# IDE
+.idea/
+
+# FVM 本地 SDK 软链接（版本见 .fvm/fvm_config.json）
+.fvm/flutter_sdk
