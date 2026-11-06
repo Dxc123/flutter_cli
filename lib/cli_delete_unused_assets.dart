@@ -14,51 +14,57 @@
 import 'utils/cli_log_until.dart';
 import 'dart:io';
 
-Future<void> flutterDeleteUnusedAssets() async {
+final _generatedConstant = RegExp(
+    r'''(?:static\s+)?const\s+(?:String\s+)?(\w+)\s*=\s*['"]([^'"]+)['"]\s*;''');
+
+/// 找出 assets/ 中未被 lib/ 使用的主图（忽略倍图和自动生成目录中的图片）。
+///
+/// 自动生成的代码不能算作“使用”，否则生成的 Assets 类会让所有图片都显示为已用；
+/// 但也不能忽略它：只有生成常量没有被业务代码引用时，对应图片才算未使用。
+/// 生成文件中以常量以外的形式出现的图片，一律保守地视为已使用。
+List<File> findUnusedAssets() {
   final imageExtensions = ['.png', '.jpg', '.jpeg', '.svg', '.webp'];
-  final assetFolder = Directory('assets');
-  final codeFolder = Directory('lib');
   final ignoreDirs = ['gen_a', 'generated', '.dart_tool'];
 
-  if (!assetFolder.existsSync()) {
-    logError('❌ assets/ 文件夹不存在');
-    exit(1);
-  }
-
-  if (!codeFolder.existsSync()) {
-    logError('❌ lib/ 文件夹不存在');
-    exit(1);
-  }
-
-  // 判断是否在 lib/ 中的 Dart 代码中被使用
   bool isInResolutionFolder(String path) {
     return RegExp(r'[\\/](\d+(\.\d+)?x)[\\/]').hasMatch(path);
   }
-  // 忽略目录
+
   bool shouldIgnorePath(String path) {
     return ignoreDirs.any((dir) => path.contains('${Platform.pathSeparator}$dir${Platform.pathSeparator}'));
   }
 
-  // 筛选主图资源，忽略倍图和自动生成目录
-  final imageFiles = assetFolder
+  final imageFiles = Directory('assets')
       .listSync(recursive: true)
       .whereType<File>()
       .where((f) =>
-  imageExtensions.any((ext) => f.path.toLowerCase().endsWith(ext)) &&
-      !isInResolutionFolder(f.path) &&
-      !shouldIgnorePath(f.path))
+          imageExtensions.any((ext) => f.path.toLowerCase().endsWith(ext)) &&
+          !isInResolutionFolder(f.path) &&
+          !shouldIgnorePath(f.path))
       .toList();
 
   logInfo('🔍 共找到 ${imageFiles.length} 个主图资源（已忽略倍图和自动生成目录）...');
 
-  // 收集 Dart 文件，忽略自动生成目录
-  final dartFiles = codeFolder
+  final dartFiles = Directory('lib')
       .listSync(recursive: true)
       .whereType<File>()
-      .where((f) => f.path.endsWith('.dart') && !shouldIgnorePath(f.path))
+      .where((f) => f.path.endsWith('.dart'))
       .toList();
 
-  final codeContent = dartFiles.map((f) => f.readAsStringSync()).join('\n');
+  String joinContent(Iterable<File> files) => files.map((f) => f.readAsStringSync()).join('\n');
+
+  final codeContent = joinContent(dartFiles.where((f) => !shouldIgnorePath(f.path)));
+  final generatedContent = joinContent(dartFiles.where((f) => shouldIgnorePath(f.path)));
+
+  final constants = _generatedConstant.allMatches(generatedContent).toList();
+  final generatedWithoutConstants = generatedContent.replaceAll(_generatedConstant, '');
+
+  bool isUsedThroughGenerated(String fileName) {
+    if (generatedWithoutConstants.contains(fileName)) return true;
+    return constants.any((c) =>
+        c[2]!.split('/').last == fileName &&
+        RegExp('\\b${RegExp.escape(c[1]!)}\\b').hasMatch(codeContent));
+  }
 
   final unusedImages = <File>[];
 
@@ -66,10 +72,26 @@ Future<void> flutterDeleteUnusedAssets() async {
     final relativePath = imageFile.path.replaceFirst(RegExp(r'^.*assets[\\/]+'), 'assets/');
     final fileName = relativePath.split(Platform.pathSeparator).last;
 
-    if (!codeContent.contains(relativePath) && !codeContent.contains(fileName)) {
+    if (!codeContent.contains(relativePath) && !codeContent.contains(fileName) && !isUsedThroughGenerated(fileName)) {
       unusedImages.add(imageFile);
     }
   }
+
+  return unusedImages;
+}
+
+Future<void> flutterDeleteUnusedAssets() async {
+  if (!Directory('assets').existsSync()) {
+    logError('❌ assets/ 文件夹不存在');
+    exit(1);
+  }
+
+  if (!Directory('lib').existsSync()) {
+    logError('❌ lib/ 文件夹不存在');
+    exit(1);
+  }
+
+  final unusedImages = findUnusedAssets();
 
   logInfo('\n🚫 未使用的主图资源 (${unusedImages.length}):');
   for (var file in unusedImages) {

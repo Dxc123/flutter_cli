@@ -1,0 +1,2 @@
+# 测试会修改进程级的 Directory.current，必须串行运行
+concurrency: 1

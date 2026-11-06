@@ -56,9 +56,10 @@ Future<void> generateAssets() async {
   buffer.writeln('// ignore_for_file: constant_identifier_names');
   buffer.writeln('');
   buffer.writeln('class Assets {');
+  final variableNames = generateAssetVariableNames(currentAssets);
   for (var path in currentAssets.toList()..sort()) {
-    final variableName = _generateVariableName(path);
-    buffer.writeln("  static const String $variableName = '$path';");
+    final literal = path.replaceAll(r'\', r'\\').replaceAll("'", r"\'").replaceAll(r'$', r'\$');
+    buffer.writeln("  static const String ${variableNames[path]} = '$literal';");
   }
   buffer.writeln('}');
 
@@ -86,16 +87,57 @@ Future<void> generateAssets() async {
   _saveSnapshot(currentAssets);
 }
 
-String _generateVariableName(String path) {
-  String noAssetsPrefix = path.startsWith('assets/') ? path.substring(7) : path;
-  final name = noAssetsPrefix
-      .replaceAll(RegExp(r'[^a-zA-Z0-9/_]'), '_') // 非字母数字替换为 _
-      .replaceAll('/', '_') // 文件夹斜杠替换为 _
-      .replaceAll('__', '_') // 双下划线合并
-      .replaceAll(RegExp(r'\.([a-zA-Z0-9]+)$'), ''); // 去掉扩展名
-  return name.startsWith(RegExp(r'\d')) ? '_$name' : name;
+const _reservedWords = {
+  'abstract', 'as', 'assert', 'async', 'await', 'break', 'case', 'catch',
+  'class', 'const', 'continue', 'covariant', 'default', 'deferred', 'do',
+  'dynamic', 'else', 'enum', 'export', 'extends', 'extension', 'external',
+  'factory', 'false', 'final', 'finally', 'for', 'function', 'get', 'hide',
+  'if', 'implements', 'import', 'in', 'interface', 'is', 'late', 'library',
+  'mixin', 'new', 'null', 'of', 'on', 'operator', 'part', 'required',
+  'rethrow', 'return', 'set', 'show', 'static', 'super', 'switch', 'sync',
+  'this', 'throw', 'true', 'try', 'typedef', 'var', 'void', 'while', 'with',
+  'yield',
+};
+
+/// 为资源路径生成合法且互不重复的常量名。
+///
+/// 默认去掉扩展名（`home.png` → `home`）；去掉后重名的保留扩展名
+/// （`a_png`、`a_webp`），仍重名的按路径排序追加序号（`a_png_2`）。
+Map<String, String> generateAssetVariableNames(Iterable<String> paths) {
+  final sorted = paths.toSet().toList()..sort();
+  final baseNames = {for (final path in sorted) path: _variableName(p.posix.withoutExtension(path))};
+
+  final counts = <String, int>{};
+  for (final name in baseNames.values) {
+    counts[name] = (counts[name] ?? 0) + 1;
+  }
+
+  final result = <String, String>{};
+  final used = <String>{};
+  for (final path in sorted) {
+    if (counts[baseNames[path]] == 1) {
+      result[path] = baseNames[path]!;
+      used.add(baseNames[path]!);
+    }
+  }
+  for (final path in sorted) {
+    if (result.containsKey(path)) continue;
+    final candidate = _variableName(path);
+    var name = candidate;
+    for (var i = 2; !used.add(name); i++) {
+      name = '${candidate}_$i';
+    }
+    result[path] = name;
+  }
+  return result;
 }
 
+String _variableName(String path) {
+  final noAssetsPrefix = path.startsWith('assets/') ? path.substring(7) : path;
+  final name = noAssetsPrefix.replaceAll(RegExp(r'[^a-zA-Z0-9]+'), '_').replaceAll(RegExp(r'^_+|_+$'), '');
+  if (name.isEmpty || name.startsWith(RegExp(r'\d'))) return 'asset_$name';
+  return _reservedWords.contains(name) ? '${name}_asset' : name;
+}
 
 String _md5(String input) => md5.convert(utf8.encode(input)).toString();
 

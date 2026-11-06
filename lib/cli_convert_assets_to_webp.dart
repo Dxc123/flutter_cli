@@ -4,11 +4,27 @@ import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:pool/pool.dart';
 
-final Set<String> convertedPngPaths = {}; // 只记录成功转换的 .png 文件路径
+/// 成功转换的 .png 路径（相对项目根目录，使用 / 分隔）
+final Set<String> convertedPngPaths = {};
+
+/// 任意层级都不处理的目录
+const _ignoredDirs = {
+  'build',
+  '.dart_tool',
+  '.git',
+  '.idea',
+  '.vscode',
+  '.fvm',
+  '.symlinks',
+  'Pods',
+  'node_modules',
+};
+
+/// 项目根目录下的平台工程目录，其图片由原生工程按文件名引用，不能转换
+const _platformDirs = {'android', 'ios', 'macos', 'windows', 'linux', 'web'};
 
 Future<void> flutterConvertAssetsToWebp() async {
   final currentDir = Directory.current;
-  final libDir = Directory('lib');
 
   if (!currentDir.existsSync()) {
     logError('❌ 当前目录不存在');
@@ -18,19 +34,58 @@ Future<void> flutterConvertAssetsToWebp() async {
   logInfo('🔍 开始转换 PNG 为 WebP...');
   await convertPngToWebp(currentDir);
 
-  logInfo('🔁 开始修改 lib 中图片引用...');
-  await updateLibImageReferences(libDir);
+  final root = _findProjectRoot(currentDir);
+  logInfo('🔁 开始修改图片引用...');
+  final libDir = Directory(p.join(root.path, 'lib'));
+  if (libDir.existsSync()) {
+    await updateLibImageReferences(libDir);
+  }
+  _updatePubspecReferences(File(p.join(root.path, 'pubspec.yaml')));
 
   logSuccess('✅ 全部完成！');
 }
+
+/// 从 [start] 向上查找 pubspec.yaml 所在目录，找不到时返回 [start]
+Directory _findProjectRoot(Directory start) {
+  var dir = start.absolute;
+  while (true) {
+    if (File(p.join(dir.path, 'pubspec.yaml')).existsSync()) return dir;
+    if (dir.parent.path == dir.path) return start.absolute;
+    dir = dir.parent;
+  }
+}
+
+List<File> _collectPngFiles(Directory dir, Directory root) {
+  final files = <File>[];
+  void walk(Directory current) {
+    for (final entity in current.listSync(followLinks: false)) {
+      if (entity is Directory) {
+        final name = p.basename(entity.path);
+        final topLevel =
+            p.split(p.relative(entity.path, from: root.path)).first;
+        if (!_ignoredDirs.contains(name) && !_platformDirs.contains(topLevel)) {
+          walk(entity);
+        }
+      } else if (entity is File && entity.path.toLowerCase().endsWith('.png')) {
+        files.add(entity);
+      }
+    }
+  }
+
+  walk(dir);
+  return files;
+}
+
+String _toWebpPath(String pngPath) => p.posix.setExtension(pngPath, '.webp');
 
 Future<void> convertPngToWebp(Directory dir, {int concurrency = 6}) async {
   int total = 0, success = 0, fail = 0;
   final pool = Pool(concurrency);
   final tasks = <Future<void>>[];
 
-  await for (var entity in dir.list(recursive: true)) {
-    if (entity is File && entity.path.toLowerCase().endsWith('.png')) {
+  final root = _findProjectRoot(dir);
+  for (final entity in _collectPngFiles(dir.absolute, root)) {
+    {
       total++;
       final pngPath = entity.path;
       final webpPath =
@@ -72,7 +127,8 @@ Future<void> convertPngToWebp(Directory dir, {int concurrency = 6}) async {
               // 忽略倍图路径（如 xxx@2x.png 或 xxx@3x.png）
               if (!RegExp(r'@[\dx]+\.png$', caseSensitive: false)
                   .hasMatch(pngPath)) {
-                convertedPngPaths.add(pngPath);
+                convertedPngPaths.add(
+                    p.split(p.relative(pngPath, from: root.path)).join('/'));
               }
 
               try {
@@ -126,7 +182,7 @@ void logInfoInstallInstructions() {
 
 Future<void> updateLibImageReferences(Directory dir) async {
   logInfo('convertedPngPaths = $convertedPngPaths');
-  final regExp = RegExp(r'''(["'])(assets[\\/][^"']+?\.png)\1''');
+  final regExp = RegExp(r'''(["'])([^"'\n]+?\.png)\1''', caseSensitive: false);
 
   await for (var entity in dir.list(recursive: true)) {
     if (entity is File && entity.path.endsWith('.dart')) {
@@ -134,11 +190,10 @@ Future<void> updateLibImageReferences(Directory dir) async {
 
       final updatedContent = content.replaceAllMapped(regExp, (match) {
         final quote = match[1]!;
-        final pngPath = p.normalize(match[2]!);
+        final pngPath = p.posix.normalize(match[2]!);
 
         if (convertedPngPaths.contains(pngPath)) {
-          final webpPath = pngPath.replaceAll('.png', '.webp');
-          return '$quote$webpPath$quote';
+          return '$quote${_toWebpPath(pngPath)}$quote';
         }
         return match.group(0)!;
       });
@@ -148,5 +203,23 @@ Future<void> updateLibImageReferences(Directory dir) async {
         logInfo('✏️ 更新路径: ${entity.path}');
       }
     }
+  }
+}
+
+/// 更新 pubspec.yaml 中单独声明的图片路径，否则 flutter build 会找不到资源
+void _updatePubspecReferences(File pubspec) {
+  if (!pubspec.existsSync()) return;
+  final content = pubspec.readAsStringSync();
+  var updated = content;
+  for (final pngPath in convertedPngPaths) {
+    updated = updated.replaceAllMapped(
+      RegExp('^(\\s*-\\s*["\']?)${RegExp.escape(pngPath)}(["\']?\\s*)\$',
+          multiLine: true),
+      (m) => '${m[1]}${_toWebpPath(pngPath)}${m[2]}',
+    );
+  }
+  if (updated != content) {
+    pubspec.writeAsStringSync(updated);
+    logInfo('✏️ 更新路径: ${pubspec.path}');
   }
 }

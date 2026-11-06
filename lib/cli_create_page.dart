@@ -15,7 +15,7 @@ const Map<String, List<String>> templateStructure = {
   'controllers': ['controller.dart'],
 };
 
-void createPage(String pageName) async {
+Future<void> createPage(String pageName) async {
   final className = toPascalCase(pageName);
 
   final currentPath = Directory.current.path;

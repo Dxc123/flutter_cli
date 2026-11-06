@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:cli/cli_convert_assets_to_webp.dart';
 import 'package:cli/cli_create_common.dart';
 import 'package:cli/cli_create_page.dart';
+import 'package:cli/cli_create_target.dart';
 import 'package:args/args.dart';
 import 'package:cli/cli_delete_unused_assets.dart';
 import 'package:cli/cli_flutter_cleaner.dart';
@@ -33,7 +34,7 @@ void main(List<String> arguments) async {
   // 子命令：create
   final createCommand = ArgParser()
     ..addOption('page', abbr: 'p', help: '创建 Flutter GetX 页面')
-    ..addOption('common', abbr: 'o', help: '生成 common 目录结构')
+    ..addFlag('common', abbr: 'o', help: '生成 common 目录结构', negatable: false)
     ..addFlag('help', abbr: 'h', help: '显示 create 子命令帮助', negatable: false);
   parser.addCommand('create', createCommand);
 
@@ -43,7 +44,14 @@ void main(List<String> arguments) async {
     exit(0);
   }
 
-  final results = parser.parse(arguments);
+  final ArgResults results;
+  try {
+    results = parser.parse(arguments);
+  } on FormatException catch (e) {
+    logError(e.message);
+    printGlobalHelp(parser);
+    exit(64);
+  }
 
   // 全局帮助
   if (results.wasParsed('help')) {
@@ -107,8 +115,6 @@ void main(List<String> arguments) async {
   // 子命令解析
   if (results.command?.name == 'create') {
     final command = results.command!;
-    final page = command['page'] as String?;
-    final common = command['common'] as String?;
 
     // 子命令帮助
     if (command.wasParsed('help')) {
@@ -117,22 +123,25 @@ void main(List<String> arguments) async {
       exit(0);
     }
 
-    logSuccess('执行 create 命令');
-
-    // 校验冲突（可选）
-    if (page != null && common != null) {
-      logWarning('不能同时指定 --page 和 --common，请分开执行。');
-      exit(1);
+    final CreateTarget target;
+    try {
+      target = resolveCreateTarget(
+        page: command['page'] as String?,
+        common: command['common'] as bool,
+        rest: command.rest,
+      );
+    } on FormatException catch (e) {
+      logError(e.message);
+      logInfo(parser.commands['create']!.usage);
+      exit(64);
     }
 
-    if (page != null) {
-      logSuccess('  → 创建页面: $page');
-      createPage(page);
-    }
-
-    if (common != null) {
+    if (target.isCommon) {
       logSuccess('  → 创建 common 目录');
       await createCommonStructure();
+    } else {
+      logSuccess('  → 创建页面: ${target.pageName}');
+      await createPage(target.pageName!);
     }
   }
 }
@@ -150,8 +159,8 @@ void printGlobalHelp(ArgParser parser) {
 
 用法示例：
   cli --clean
-  cli create --page home
-  cli create --common
+  cli create page:home（或 cli create --page home）
+  cli create common（或 cli create --common）
   cli create --help
 ''');
 }
