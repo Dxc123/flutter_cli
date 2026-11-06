@@ -18,9 +18,8 @@ Future<void> scanAndAddAssetFolders() async {
   final folderSet = <String>{};
   await for (var entity in assetsDir.list(recursive: true, followLinks: false)) {
     if (entity is Directory) {
-      final folderName = p.basename(entity.path);
-      // 跳过高倍图文件夹，如 2.0x、3.0x 等
-      if (_isResolutionFolder(folderName)) continue;
+      // 跳过高倍图文件夹（如 1.5x、2.0x）及其子目录
+      if (p.split(entity.path).any(_isResolutionFolder)) continue;
       final relative = p.relative(entity.path, from: Directory.current.path);
       folderSet.add('$relative/');
     }
@@ -31,9 +30,9 @@ Future<void> scanAndAddAssetFolders() async {
   await addAssetsToPubspec(folderList);
 }
 
-/// 是否为 2.0x/3.0x/4.0x 等高分辨率文件夹
+/// 是否为 1.5x/2.0x/3x 等高分辨率文件夹
 bool _isResolutionFolder(String folderName) {
-  return RegExp(r'^[0-9](\.0)?x$').hasMatch(folderName);
+  return RegExp(r'^\d+(\.\d+)?x$').hasMatch(folderName);
 }
 
 Future<void> addAssetsToPubspec(List<String> folders) async {

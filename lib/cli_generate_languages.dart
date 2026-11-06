@@ -2,9 +2,6 @@ import 'dart:io';
 import 'package:excel/excel.dart';
 import 'package:path/path.dart' as p;
 
-/// 默认 Excel 文件路径（如果未传参）
-const defaultExcelPath = 'lib/assets/languages.xlsx';
-
 /// 输出目录
 const outputDir = 'lib/generated_languages';
 
@@ -12,8 +9,8 @@ const outputDir = 'lib/generated_languages';
 Future<void> generatedLanguages() async {
   final inputExcel = _findExcelFileWithNamePart('languages', 'assets');
   if (inputExcel == null) {
-    print('❌ Excel 文件不存在: $inputExcel');
-    print('请将确保目标文件路径为: assets/languages.xlsx');
+    print('❌ Excel 文件不存在');
+    print('请确保目标文件路径为: assets/languages.xlsx');
     exit(1);
   }
 
@@ -29,8 +26,8 @@ Future<void> generatedLanguages() async {
     exit(1);
   }
 
-  final headers = sheet.rows.first.map((e) => e?.value.toString() ?? '').toList();
-  final langCodes = headers.where((h) => h != 'key').toList();
+  final headers = sheet.rows.first.map((e) => e?.value?.toString().trim() ?? '').toList();
+  final langCodes = headers.where((h) => h.isNotEmpty && h != 'key').toList();
 
   print('📦 找到语言列: $langCodes');
 
@@ -53,19 +50,10 @@ Future<void> generatedLanguages() async {
   if (!outDir.existsSync()) outDir.createSync(recursive: true);
 
   for (var lang in translations.keys) {
-    final filename = 'language_${lang.toLowerCase()}.dart';
-    final className = 'language${lang[0].toUpperCase()}${lang.substring(1)}';
-    final buffer = StringBuffer()
-      ..writeln('// ignore_for_file: prefer_single_quotes')
-      ..writeln('final Map<String, String> $className = {');
+    final filename = languageFileName(lang);
+    final content = renderLanguageFile(lang, translations[lang]!);
 
-    translations[lang]!.forEach((key, value) {
-      buffer.writeln("  '$key': '${_escape(value)}',");
-    });
-
-    buffer.writeln('};');
-
-    File(p.join(outputDir, filename)).writeAsStringSync(buffer.toString());
+    File(p.join(outputDir, filename)).writeAsStringSync(content);
     print('✅ 生成: $filename');
   }
 
@@ -82,6 +70,30 @@ String? _findExcelFileWithNamePart(String namePart, String dirPath) {
   return files.isNotEmpty ? files.first.path : null;
 }
 
+/// 语言列名中不能用于标识符的字符（如 zh-CN 的 -）统一替换为下划线
+String _languageId(String lang) => lang.replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '_');
+
+String languageFileName(String lang) => 'language_${_languageId(lang).toLowerCase()}.dart';
+
+/// 生成单个语言文件的内容
+String renderLanguageFile(String lang, Map<String, String> entries) {
+  final id = _languageId(lang);
+  final variableName = 'language${id[0].toUpperCase()}${id.substring(1)}';
+  final buffer = StringBuffer()
+    ..writeln('// ignore_for_file: prefer_single_quotes')
+    ..writeln('final Map<String, String> $variableName = {');
+  entries.forEach((key, value) {
+    buffer.writeln("  '${_escape(key)}': '${_escape(value)}',");
+  });
+  buffer.writeln('};');
+  return buffer.toString();
+}
+
 String _escape(String input) {
-  return input.replaceAll("'", "\\'").replaceAll('\n', '\\n');
+  return input
+      .replaceAll(r'\', r'\\')
+      .replaceAll("'", r"\'")
+      .replaceAll(r'$', r'\$')
+      .replaceAll('\r', r'\r')
+      .replaceAll('\n', r'\n');
 }

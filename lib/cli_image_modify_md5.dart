@@ -3,9 +3,11 @@ import 'dart:collection';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:math';
+import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 
 import 'utils/cli_log_until.dart';
+import 'utils/cli_project_files.dart';
 
 
 /// 修改图片的 MD5
@@ -20,7 +22,7 @@ Future<void> imagesModifyMD5() async {
 
   logInfo('Starting to modify MD5 for all images in directory: $directoryPath');
 
-  final imageFiles = directory.listSync(recursive: true).whereType<File>().where((file) => _isImageFile(file.path)).toList();
+  final imageFiles = collectProjectFiles(directory, _isImageFile);
 
   if (imageFiles.isEmpty) {
     logWarning('No image files found in the directory or its subdirectories.');
@@ -31,8 +33,12 @@ Future<void> imagesModifyMD5() async {
 
   // 限制并发 Isolate 数量
   const maxConcurrentIsolates = 4;
-  await _processFilesWithIsolatePool(imageFiles, maxConcurrentIsolates);
+  final failed = await _processFilesWithIsolatePool(imageFiles, maxConcurrentIsolates);
 
+  if (failed > 0) {
+    logError('\nFailed to modify $failed of ${imageFiles.length} images.');
+    return;
+  }
   logSuccess('\nCompleted modifying MD5 for ${imageFiles.length} images.');
 }
 
@@ -43,10 +49,12 @@ bool _isImageFile(String path) {
 }
 
 /// 使用 Isolate 池处理文件
-Future<void> _processFilesWithIsolatePool(List<File> files, int maxConcurrentIsolates) async {
+/// 返回处理失败的文件数
+Future<int> _processFilesWithIsolatePool(List<File> files, int maxConcurrentIsolates) async {
   final pool = IsolatePool(maxConcurrentIsolates);
   final progress = StreamController<int>();
   int processedCount = 0;
+  int failed = 0;
 
   // 监听进度更新
   progress.stream.listen((count) {
@@ -57,28 +65,26 @@ Future<void> _processFilesWithIsolatePool(List<File> files, int maxConcurrentIso
   // 向池中提交任务
   for (final file in files) {
     pool.submitTask(() async {
-      await _processFileInIsolate(file, progress);
+      if (!await _processFileInIsolate(file, progress)) failed++;
     });
   }
 
   // 等待所有任务完成
   await pool.close();
   await progress.close();
+  return failed;
 }
 
 /// 使用 Isolate 处理单个文件
-Future<void> _processFileInIsolate(File file, StreamController<int> progress) async {
+Future<bool> _processFileInIsolate(File file, StreamController<int> progress) async {
   final receivePort = ReceivePort();
   final isolate = await Isolate.spawn(_isolateProcessFile, [file.path, receivePort.sendPort]);
 
-  await for (var message in receivePort) {
-    if (message == 'done') {
-      progress.add(1);
-      receivePort.close();
-      isolate.kill();
-      break;
-    }
-  }
+  final success = await receivePort.first == 'done';
+  progress.add(1);
+  receivePort.close();
+  isolate.kill();
+  return success;
 }
 
 /// Isolate 的处理逻辑
@@ -112,6 +118,8 @@ void _isolateProcessFile(List args) async {
     logInfo('MD5 After: $modifiedMD5');
   } catch (e) {
     logError('Failed to process file: $filePath. Error: $e');
+    sendPort.send('failed');
+    return;
   }
 
   sendPort.send('done');

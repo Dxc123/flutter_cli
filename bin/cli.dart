@@ -8,6 +8,7 @@ import 'package:args/args.dart';
 import 'package:cli/cli_delete_unused_assets.dart';
 import 'package:cli/cli_flutter_cleaner.dart';
 import 'package:cli/cli_flutter_gen_index.dart';
+import 'package:cli/cli_gen_icon/icon_gen.dart';
 import 'package:cli/cli_generate_assets.dart';
 import 'package:cli/cli_generate_languages.dart';
 import 'package:cli/cli_generate_scan_add_asset_folders.dart';
@@ -27,7 +28,7 @@ void main(List<String> arguments) async {
     ..addFlag('webp',abbr: 'w', help: '批量修改asset目录下图片格式:png->webp,同时修改lib目录下代码引用', negatable: false)
     ..addFlag('x1x2',abbr: 'x', help: '根据x3图片自动生成x1和x2图片', negatable: false)
     ..addFlag('delete', abbr: 'd', help: '批量删除asset目录下未使用资源', negatable: false)
-    ..addFlag('excel', abbr: 'e', help: '读取asset目录下Excel表格(asset/languages.xlsx)翻译内容生成对应的语言文件', negatable: false)
+    ..addFlag('excel', abbr: 'e', help: '读取assets目录下Excel表格(assets/languages.xlsx)翻译内容生成对应的语言文件', negatable: false)
     ..addFlag('scan', abbr: 's', help: '将assets路径自动加入pubspec.yaml', negatable: false)
     ..addFlag('assets', abbr: 'a', help: '将assets下的资源生成Dart静态资源类文件Assets.dart', negatable: false);
 
@@ -38,10 +39,13 @@ void main(List<String> arguments) async {
     ..addFlag('help', abbr: 'h', help: '显示 create 子命令帮助', negatable: false);
   parser.addCommand('create', createCommand);
 
+  // 子命令：generate
+  parser.addCommand('generate');
+
   if (arguments.isEmpty) {
     logError('未检测到参数，使用 --help 查看帮助');
     printGlobalHelp(parser);
-    exit(0);
+    exit(64);
   }
 
   final ArgResults results;
@@ -72,8 +76,7 @@ void main(List<String> arguments) async {
   }
 
   if (results.wasParsed('clean')) {
-    await flutterClean();
-    exit(0);
+    exit(await flutterClean() ? 0 : 1);
   }
 
   if (results.wasParsed('generate')) {
@@ -109,6 +112,16 @@ void main(List<String> arguments) async {
   }
   if (results.wasParsed('assets')) {
     await generateAssets();
+    exit(0);
+  }
+
+  // 子命令：generate icons
+  if (results.command?.name == 'generate') {
+    if (results.command!.rest.join(' ') != 'icons') {
+      logError('用法: cli generate icons');
+      exit(64);
+    }
+    await const IconGen().gen();
     exit(0);
   }
 
@@ -156,6 +169,8 @@ void printGlobalHelp(ArgParser parser) {
     -p, --page     创建 Flutter GetX 页面
     -o, --common   创建 common 目录
     -h, --help     显示 create 子命令帮助
+
+  generate icons   根据 iconfont 压缩包生成图标类
 
 用法示例：
   cli --clean

@@ -13,11 +13,11 @@ dart pub global list
 本地移除：dart pub global deactivate cli
 
 
-生成page命令(生成 getx 项目目录结构，配合 Git 模版使用)：
-cli create page:zt_home
+生成page命令(生成 getx 项目目录结构，配合 Git 模版使用，页面名须为小写蛇形)：
+cli create page:zt_home 或 cli create --page zt_home
 
 生成common目录命令：
-cli create common
+cli create common 或 cli create --common
 
 
 清理本地模板缓存命令：
@@ -51,6 +51,7 @@ cli --scan或者cli -s
 cli --assets或者cli -a
 
 
+根据 iconfont 压缩包生成图标类(默认读取 assets/icons_download.zip，可在 pubspec.yaml 的 flutter_icons 下配置 src_zip、assets_dir、dist_file)
 cli generate icons
 
 打印命令帮助信息：

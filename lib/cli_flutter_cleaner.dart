@@ -2,33 +2,43 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
+
 import 'utils/cli_log_until.dart';
 
 /// 并发数限制（可根据机器性能调整）
 const int maxConcurrent = 3;
 
 /// 清理当前目录下所有 Flutter 项目
-Future<void> flutterClean() async {
+///
+/// 全部成功（或没有项目）时返回 true。
+Future<bool> flutterClean() async {
   logInfo('Scanning current directory for Flutter projects...');
 
   final currentDir = Directory.current;
 
-  final projects = await _findFlutterProjects(currentDir);
+  final projects = await findFlutterProjects(currentDir);
 
   if (projects.isEmpty) {
     logWarning('No Flutter projects found.');
-    return;
+    return true;
   }
 
   logInfo('\nFound ${projects.length} Flutter project(s). Starting cleaning...\n');
 
-  await _cleanProjectsConcurrently(projects, maxConcurrent);
+  final failed = await _cleanProjectsConcurrently(projects, maxConcurrent);
 
+  if (failed.isNotEmpty) {
+    logError('\n${failed.length}/${projects.length} project(s) failed:');
+    failed.forEach(logError);
+    return false;
+  }
   logSuccess('\nAll Flutter projects cleaned successfully!');
+  return true;
 }
 
 /// 异步扫描 Flutter 项目（排除部分目录）
-Future<List<Directory>> _findFlutterProjects(Directory root) async {
+Future<List<Directory>> findFlutterProjects(Directory root) async {
   final ignoreDirs = {'.git', 'build', '.dart_tool', '.idea', '.vscode'};
   final projects = <Directory>[];
 
@@ -42,7 +52,7 @@ Future<List<Directory>> _findFlutterProjects(Directory root) async {
 
       for (var entity in entities) {
         if (entity is Directory) {
-          final name = entity.uri.pathSegments.last;
+          final name = p.basename(entity.path);
           if (!ignoreDirs.contains(name)) {
             await search(entity);
           }
@@ -72,19 +82,19 @@ bool _isFlutterProject(Directory dir) {
 }
 
 
-/// 控制并发数的清理执行器
-Future<void> _cleanProjectsConcurrently(List<Directory> projects, int concurrentLimit) async {
+/// 控制并发数的清理执行器，返回失败的项目路径
+Future<List<String>> _cleanProjectsConcurrently(List<Directory> projects, int concurrentLimit) async {
   final queue = Queue<Directory>.from(projects);
-  final futures = <Future>[];
+  final failed = <String>[];
 
-  for (int i = 0; i < concurrentLimit; i++) {
-    futures.add(_cleanWorker(queue, i + 1));
-  }
+  await Future.wait([
+    for (int i = 0; i < concurrentLimit; i++) _cleanWorker(queue, i + 1, failed),
+  ]);
 
-  await Future.wait(futures);
+  return failed;
 }
 
-Future<void> _cleanWorker(Queue<Directory> queue, int workerId) async {
+Future<void> _cleanWorker(Queue<Directory> queue, int workerId, List<String> failed) async {
   while (queue.isNotEmpty) {
     final project = queue.removeFirst();
     try {
@@ -92,21 +102,20 @@ Future<void> _cleanWorker(Queue<Directory> queue, int workerId) async {
       await _cleanProjectAsync(project);
     } catch (e) {
       logError('[Worker $workerId] Failed to clean ${project.path}: $e');
+      failed.add(project.path);
     }
   }
 }
 
-/// 清理单个项目
+/// 清理单个项目：先执行 flutter clean，再删除残留目录，避免同时操作同一目录
 Future<void> _cleanProjectAsync(Directory dir) async {
-  await Future.wait([
-    _runFlutterCleanAsync(dir),
-    _deleteFolder('${dir.path}/.dart_tool', 'Cache'),
-    _deleteFolder('${dir.path}/build', 'Build'),
-  ]);
+  await _runFlutterCleanAsync(dir);
+  await _deleteFolder('${dir.path}/.dart_tool', 'Cache');
+  await _deleteFolder('${dir.path}/build', 'Build');
   logSuccess('✅ Project ${dir.path} cleaned.');
 }
 
-/// 运行 flutter clean 命令
+/// 运行 flutter clean 命令，失败时抛出异常
 Future<void> _runFlutterCleanAsync(Directory dir) async {
   final result = await Process.run(
     'flutter',
@@ -114,11 +123,10 @@ Future<void> _runFlutterCleanAsync(Directory dir) async {
     workingDirectory: dir.path,
   );
 
-  if (result.exitCode == 0) {
-    logSuccess('flutter clean completed for ${dir.path}.');
-  } else {
-    logError('flutter clean failed for ${dir.path}: ${result.stderr}');
+  if (result.exitCode != 0) {
+    throw 'flutter clean failed: ${result.stderr}';
   }
+  logSuccess('flutter clean completed for ${dir.path}.');
 }
 
 /// 删除指定目录（如 build 或 .dart_tool）
@@ -128,6 +136,6 @@ Future<void> _deleteFolder(String path, String label) async {
     await dir.delete(recursive: true);
     logSuccess('$label folder deleted: $path');
   } else {
-    logWarning('$label folder not found: $path');
+    logInfo('$label folder already removed: $path');
   }
 }

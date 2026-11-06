@@ -1,27 +1,12 @@
 import 'dart:io';
 import 'package:cli/utils/cli_log_until.dart';
+import 'package:cli/utils/cli_project_files.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:pool/pool.dart';
 
 /// 成功转换的 .png 路径（相对项目根目录，使用 / 分隔）
 final Set<String> convertedPngPaths = {};
-
-/// 任意层级都不处理的目录
-const _ignoredDirs = {
-  'build',
-  '.dart_tool',
-  '.git',
-  '.idea',
-  '.vscode',
-  '.fvm',
-  '.symlinks',
-  'Pods',
-  'node_modules',
-};
-
-/// 项目根目录下的平台工程目录，其图片由原生工程按文件名引用，不能转换
-const _platformDirs = {'android', 'ios', 'macos', 'windows', 'linux', 'web'};
 
 Future<void> flutterConvertAssetsToWebp() async {
   final currentDir = Directory.current;
@@ -34,7 +19,7 @@ Future<void> flutterConvertAssetsToWebp() async {
   logInfo('🔍 开始转换 PNG 为 WebP...');
   await convertPngToWebp(currentDir);
 
-  final root = _findProjectRoot(currentDir);
+  final root = findProjectRoot(currentDir);
   logInfo('🔁 开始修改图片引用...');
   final libDir = Directory(p.join(root.path, 'lib'));
   if (libDir.existsSync()) {
@@ -45,37 +30,6 @@ Future<void> flutterConvertAssetsToWebp() async {
   logSuccess('✅ 全部完成！');
 }
 
-/// 从 [start] 向上查找 pubspec.yaml 所在目录，找不到时返回 [start]
-Directory _findProjectRoot(Directory start) {
-  var dir = start.absolute;
-  while (true) {
-    if (File(p.join(dir.path, 'pubspec.yaml')).existsSync()) return dir;
-    if (dir.parent.path == dir.path) return start.absolute;
-    dir = dir.parent;
-  }
-}
-
-List<File> _collectPngFiles(Directory dir, Directory root) {
-  final files = <File>[];
-  void walk(Directory current) {
-    for (final entity in current.listSync(followLinks: false)) {
-      if (entity is Directory) {
-        final name = p.basename(entity.path);
-        final topLevel =
-            p.split(p.relative(entity.path, from: root.path)).first;
-        if (!_ignoredDirs.contains(name) && !_platformDirs.contains(topLevel)) {
-          walk(entity);
-        }
-      } else if (entity is File && entity.path.toLowerCase().endsWith('.png')) {
-        files.add(entity);
-      }
-    }
-  }
-
-  walk(dir);
-  return files;
-}
-
 String _toWebpPath(String pngPath) => p.posix.setExtension(pngPath, '.webp');
 
 Future<void> convertPngToWebp(Directory dir, {int concurrency = 6}) async {
@@ -83,8 +37,9 @@ Future<void> convertPngToWebp(Directory dir, {int concurrency = 6}) async {
   final pool = Pool(concurrency);
   final tasks = <Future<void>>[];
 
-  final root = _findProjectRoot(dir);
-  for (final entity in _collectPngFiles(dir.absolute, root)) {
+  final root = findProjectRoot(dir);
+  for (final entity in collectProjectFiles(
+      dir, (path) => path.toLowerCase().endsWith('.png'))) {
     {
       total++;
       final pngPath = entity.path;
