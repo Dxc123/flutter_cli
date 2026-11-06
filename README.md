@@ -54,6 +54,12 @@ cli --assets或者cli -a
 根据 iconfont 压缩包生成图标类(默认读取 assets/icons_download.zip，可在 pubspec.yaml 的 flutter_icons 下配置 src_zip、assets_dir、dist_file)
 cli generate icons
 
+生成或补全混淆配置 lib/app_config.json（已有映射不变，接口目录默认 lib/app/common/api）
+cli obfuscate config [--api-dir app/common/api]
+
+按配置混淆接口和模型（直接改写 lib 源码，请先提交代码，可用 --dry-run 预览）
+cli obfuscate apply [--dry-run]
+
 打印命令帮助信息：
 cli --help / cli -h
 打印 CLI 工具版本：

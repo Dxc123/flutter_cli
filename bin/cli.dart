@@ -14,6 +14,7 @@ import 'package:cli/cli_generate_languages.dart';
 import 'package:cli/cli_generate_scan_add_asset_folders.dart';
 import 'package:cli/cli_generate_x1_2x_pic.dart';
 import 'package:cli/cli_image_modify_md5.dart';
+import 'package:cli/cli_obfuscate/obfuscate.dart';
 import 'package:cli/utils/cli_load_template_util.dart';
 import 'package:cli/utils/cli_log_until.dart';
 
@@ -41,6 +42,14 @@ void main(List<String> arguments) async {
 
   // 子命令：generate
   parser.addCommand('generate');
+
+  // 子命令：obfuscate
+  parser.addCommand(
+    'obfuscate',
+    ArgParser()
+      ..addOption('api-dir', help: '接口定义目录（相对 lib）', defaultsTo: defaultApiDir)
+      ..addFlag('dry-run', help: 'apply 时只预览，不写入文件', negatable: false),
+  );
 
   if (arguments.isEmpty) {
     logError('未检测到参数，使用 --help 查看帮助');
@@ -125,6 +134,26 @@ void main(List<String> arguments) async {
     exit(0);
   }
 
+  // 子命令：obfuscate config / apply
+  if (results.command?.name == 'obfuscate') {
+    final command = results.command!;
+    try {
+      switch (command.rest.join(' ')) {
+        case 'config':
+          generateObfuscateConfig(apiDir: command['api-dir'] as String);
+        case 'apply':
+          applyObfuscation(dryRun: command['dry-run'] as bool);
+        default:
+          logError('用法: cli obfuscate config [--api-dir 目录] | cli obfuscate apply [--dry-run]');
+          exit(64);
+      }
+    } on ObfuscateException catch (e) {
+      logError(e.message);
+      exit(1);
+    }
+    exit(0);
+  }
+
   // 子命令解析
   if (results.command?.name == 'create') {
     final command = results.command!;
@@ -171,6 +200,9 @@ void printGlobalHelp(ArgParser parser) {
     -h, --help     显示 create 子命令帮助
 
   generate icons   根据 iconfont 压缩包生成图标类
+
+  obfuscate config 生成或补全 lib/app_config.json
+  obfuscate apply  按配置混淆接口和模型
 
 用法示例：
   cli --clean
