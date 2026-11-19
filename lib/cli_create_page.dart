@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as path;
 
+import 'utils/cli_confirm.dart';
 import 'utils/cli_load_template_util.dart';
 
 /// GitHub 原始模板地址（可替换为你的仓库）
@@ -15,45 +16,29 @@ const Map<String, List<String>> templateStructure = {
   'controllers': ['controller.dart'],
 };
 
-Future<void> createPage(String pageName) async {
+/// 在 modules/[pageName] 下生成页面；没有出错（包括用户取消）时返回 true。
+Future<bool> createPage(
+  String pageName, {
+  Confirm confirm = askUser,
+  TemplateLoader loader = loadTemplateFromGithub,
+}) {
   final className = toPascalCase(pageName);
-
-  final currentPath = Directory.current.path;
-  final modulesPath = path.join(currentPath, 'modules');
-  final modulesDir = Directory(modulesPath);
-
-  if (modulesDir.existsSync()) {
-    print('✅ 使用已存在的 "modules" 目录：$modulesPath');
-  } else {
-    modulesDir.createSync(recursive: true);
-    print('📁 创建 "modules" 目录：$modulesPath');
-  }
-
-  for (final entry in templateStructure.entries) {
-    final baseDir = Directory(path.join(modulesPath, pageName));
-    final folderPath = path.join(baseDir.path, entry.key);
-    Directory(folderPath).createSync(recursive: true);
-    print('📁 Created folder: $folderPath');
-
-    for (final fileName in entry.value) {
-      final content = await loadTemplateFromGithub(
-        '${entry.key}/${fileName.replaceAll('.dart', '.template')}',
-        githubBaseUrl,
-      );
-
-      if (content == null) {
-        print('❌ Failed to fetch template: ${entry.key}/$fileName');
-        exit(1);
-      }
-
-      final finalContent = content.replaceAll('{{className}}', className);
-      final finalContent22 = finalContent.replaceAll('{{pageName}}', pageName);
-
-      final filePath = path.join(folderPath, "${pageName}_$fileName");
-      File(filePath).writeAsStringSync(finalContent22);
-      print('✅ Created file: $filePath');
-    }
-  }
+  final pageDir = path.join(Directory.current.path, 'modules', pageName);
+  final files = {
+    for (final entry in templateStructure.entries)
+      for (final fileName in entry.value)
+        path.join(pageDir, entry.key, '${pageName}_$fileName'):
+            '${entry.key}/${fileName.replaceAll('.dart', '.template')}',
+  };
+  return writeTemplates(
+    files,
+    githubBaseUrl,
+    transform: (content) => content
+        .replaceAll('{{className}}', className)
+        .replaceAll('{{pageName}}', pageName),
+    confirm: confirm,
+    loader: loader,
+  );
 }
 
 String toPascalCase(String str) {

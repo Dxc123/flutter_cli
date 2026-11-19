@@ -15,6 +15,7 @@ dart pub global list
 
 生成page命令(生成 getx 项目目录结构，配合 Git 模版使用，页面名须为小写蛇形)：
 cli create page:zt_home 或 cli create --page zt_home
+（目标文件已存在时会询问是否覆盖，加 -y 直接覆盖；模板全部下载成功后才写入）
 
 生成common目录命令：
 cli create common 或 cli create --common
@@ -34,9 +35,11 @@ cli --md5或者cli -m
 
 批量修改当前目录及其子目录下所有图片格式:png->webp命令:
 cli --webp或者cli -w
+（需要安装 cwebp；转换后会删除原 PNG，执行前会确认，加 -y 跳过确认）
 
 根据x3图片自动生成x1和x2图片命令:
 cli --x1x2或者cli -x
+（处理直接位于 3.0x/ 或 3x/ 目录下的 png/jpg，生成到上级目录和 2.0x/(2x/)；已存在的 1x/2x 图会询问是否覆盖，加 -y 直接覆盖）
 
 删除未使用资源功能
 cli --delete或者cli -d
@@ -59,6 +62,10 @@ cli obfuscate config [--api-dir app/common/api]
 
 按配置混淆接口和模型（直接改写 lib 源码，请先提交代码，可用 --dry-run 预览）
 cli obfuscate apply [--dry-run]
+
+跳过确认提示（适用于 -w、-x、-d、-c 和 create）：
+cli -y <命令>，如 cli -w -y
+（CI 或脚本等读不到输入的环境中，遇到需要确认的操作会报错并以退出码 1 结束，需显式加 -y）
 
 打印命令帮助信息：
 cli --help / cli -h

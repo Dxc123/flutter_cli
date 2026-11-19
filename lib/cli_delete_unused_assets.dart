@@ -11,8 +11,10 @@
 // flutter clean
 // flutter pub get
 
-import 'utils/cli_log_until.dart';
 import 'dart:io';
+
+import 'utils/cli_confirm.dart';
+import 'utils/cli_log_until.dart';
 
 final _generatedConstant = RegExp(
     r'''(?:static\s+)?const\s+(?:String\s+)?(\w+)\s*=\s*['"]([^'"]+)['"]\s*;''');
@@ -80,7 +82,7 @@ List<File> findUnusedAssets() {
   return unusedImages;
 }
 
-Future<void> flutterDeleteUnusedAssets() async {
+Future<void> flutterDeleteUnusedAssets({Confirm confirm = askUser}) async {
   if (!Directory('assets').existsSync()) {
     logError('❌ assets/ 文件夹不存在');
     exit(1);
@@ -107,10 +109,8 @@ Future<void> flutterDeleteUnusedAssets() async {
   output.writeAsStringSync(unusedImages.map((f) => f.path).join('\n'));
   logInfo('\n📄 未使用主图列表已导出到 unused_assets.txt');
 
-  stdout.write('\n⚠️ 是否删除这些未使用主图及其倍图？（y/N）: ');
-  final response = stdin.readLineSync()?.toLowerCase().trim();
-
-  if (response == 'y') {
+  stdout.writeln();
+  if (confirm('是否删除这些未使用主图及其倍图？')) {
     int deleted = 0;
 
     for (var file in unusedImages) {

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:cli/cli_convert_assets_to_webp.dart';
+import 'package:cli/utils/cli_confirm.dart';
 import 'package:image/image.dart' as img;
 import 'package:test/test.dart';
 
@@ -15,7 +16,7 @@ void main() {
       final pngFile = File('sample.png');
       await pngFile.writeAsBytes(img.encodePng(img.Image(width: 1, height: 1)));
 
-      await flutterConvertAssetsToWebp();
+      await flutterConvertAssetsToWebp(confirm: alwaysYes);
 
       expect(pngFile.existsSync(), isFalse);
       expect(File('sample.webp').existsSync(), isTrue);
