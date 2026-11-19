@@ -15,6 +15,7 @@ import 'package:cli/cli_generate_scan_add_asset_folders.dart';
 import 'package:cli/cli_generate_x1_2x_pic.dart';
 import 'package:cli/cli_image_modify_md5.dart';
 import 'package:cli/cli_obfuscate/obfuscate.dart';
+import 'package:cli/utils/cli_confirm.dart';
 import 'package:cli/utils/cli_load_template_util.dart';
 import 'package:cli/utils/cli_log_until.dart';
 
@@ -31,12 +32,14 @@ void main(List<String> arguments) async {
     ..addFlag('delete', abbr: 'd', help: '批量删除asset目录下未使用资源', negatable: false)
     ..addFlag('excel', abbr: 'e', help: '读取assets目录下Excel表格(assets/languages.xlsx)翻译内容生成对应的语言文件', negatable: false)
     ..addFlag('scan', abbr: 's', help: '将assets路径自动加入pubspec.yaml', negatable: false)
-    ..addFlag('assets', abbr: 'a', help: '将assets下的资源生成Dart静态资源类文件Assets.dart', negatable: false);
+    ..addFlag('assets', abbr: 'a', help: '将assets下的资源生成Dart静态资源类文件Assets.dart', negatable: false)
+    ..addFlag('yes', abbr: 'y', help: '跳过确认提示，直接执行删除或覆盖', negatable: false);
 
   // 子命令：create
   final createCommand = ArgParser()
     ..addOption('page', abbr: 'p', help: '创建 Flutter GetX 页面')
     ..addFlag('common', abbr: 'o', help: '生成 common 目录结构', negatable: false)
+    ..addFlag('yes', abbr: 'y', help: '已存在的文件直接覆盖，不再确认', negatable: false)
     ..addFlag('help', abbr: 'h', help: '显示 create 子命令帮助', negatable: false);
   parser.addCommand('create', createCommand);
 
@@ -66,6 +69,15 @@ void main(List<String> arguments) async {
     exit(64);
   }
 
+  try {
+    await _run(parser, results);
+  } on ConfirmationRequired catch (e) {
+    logError(e.toString());
+    exit(1);
+  }
+}
+
+Future<void> _run(ArgParser parser, ArgResults results) async {
   // 全局帮助
   if (results.wasParsed('help')) {
     printGlobalHelp(parser);
@@ -78,9 +90,11 @@ void main(List<String> arguments) async {
     exit(0);
   }
 
+  final confirm = confirmer(yes: results['yes'] as bool);
+
   // 具体命令执行
   if (results.wasParsed('clear')) {
-    await clearTemplateCache();
+    await clearTemplateCache(confirm: confirm);
     exit(0);
   }
 
@@ -98,16 +112,14 @@ void main(List<String> arguments) async {
     exit(0);
   }
   if (results.wasParsed('webp')) {
-    await flutterConvertAssetsToWebp();
-    exit(0);
+    exit(await flutterConvertAssetsToWebp(confirm: confirm) ? 0 : 1);
   }
   if (results.wasParsed('x1x2')) {
-    await generateX1_2xPic();
-    exit(0);
+    exit(await generateX1_2xPic(confirm: confirm) ? 0 : 1);
   }
 
   if (results.wasParsed('delete')) {
-    await flutterDeleteUnusedAssets();
+    await flutterDeleteUnusedAssets(confirm: confirm);
     exit(0);
   }
 
@@ -178,14 +190,23 @@ void main(List<String> arguments) async {
       exit(64);
     }
 
+    final createConfirm =
+        command['yes'] as bool ? alwaysYes : confirm;
+    final bool ok;
     if (target.isCommon) {
       logSuccess('  → 创建 common 目录');
-      await createCommonStructure();
+      ok = await createCommonStructure(confirm: createConfirm);
     } else {
       logSuccess('  → 创建页面: ${target.pageName}');
-      await createPage(target.pageName!);
+      ok = await createPage(target.pageName!, confirm: createConfirm);
     }
+    exit(ok ? 0 : 1);
   }
+
+  // 没有匹配到任何命令（如只传了 -y）
+  logError('未指定要执行的命令');
+  printGlobalHelp(parser);
+  exit(64);
 }
 
 /// 打印全局帮助信息
@@ -197,6 +218,7 @@ void printGlobalHelp(ArgParser parser) {
   create           创建页面或目录
     -p, --page     创建 Flutter GetX 页面
     -o, --common   创建 common 目录
+    -y, --yes      已存在的文件直接覆盖
     -h, --help     显示 create 子命令帮助
 
   generate icons   根据 iconfont 压缩包生成图标类
@@ -209,5 +231,6 @@ void printGlobalHelp(ArgParser parser) {
   cli create page:home（或 cli create --page home）
   cli create common（或 cli create --common）
   cli create --help
+  cli -w -y（跳过确认，直接转换并删除原 PNG）
 ''');
 }

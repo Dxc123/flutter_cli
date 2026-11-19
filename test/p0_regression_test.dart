@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:cli/cli_convert_assets_to_webp.dart';
+import 'package:cli/utils/cli_confirm.dart';
 import 'package:cli/cli_create_target.dart';
 import 'package:cli/cli_delete_unused_assets.dart';
 import 'package:cli/cli_generate_assets.dart';
@@ -43,7 +44,7 @@ void main() {
           "const b = 'assets/other.png';\n");
       writePng('assets/images/home.png');
 
-      await flutterConvertAssetsToWebp();
+      await flutterConvertAssetsToWebp(confirm: alwaysYes);
 
       expect(File('lib/main.dart').readAsStringSync(),
           "const a = 'assets/images/home.webp';\n"
@@ -58,7 +59,7 @@ void main() {
       writePng('assets/images/home.png');
 
       Directory.current = 'assets/images';
-      await flutterConvertAssetsToWebp();
+      await flutterConvertAssetsToWebp(confirm: alwaysYes);
       Directory.current = temp.path;
 
       expect(File('assets/images/home.webp').existsSync(), isTrue);
@@ -75,7 +76,7 @@ void main() {
       kept.forEach(writePng);
       Directory('lib').createSync();
 
-      await flutterConvertAssetsToWebp();
+      await flutterConvertAssetsToWebp(confirm: alwaysYes);
 
       for (final path in kept) {
         expect(File(path).existsSync(), isTrue, reason: path);

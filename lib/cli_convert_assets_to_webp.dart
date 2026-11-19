@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cli/utils/cli_confirm.dart';
 import 'package:cli/utils/cli_log_until.dart';
 import 'package:cli/utils/cli_project_files.dart';
 import 'package:image/image.dart' as img;
@@ -8,18 +9,62 @@ import 'package:pool/pool.dart';
 /// 成功转换的 .png 路径（相对项目根目录，使用 / 分隔）
 final Set<String> convertedPngPaths = {};
 
-Future<void> flutterConvertAssetsToWebp() async {
+/// 转换当前目录下的 PNG 为 WebP，删除原图并更新 lib 和 pubspec.yaml 中的引用。
+///
+/// 删除原图前需经 [confirm] 同意；全部成功（或无需转换）时返回 true。
+Future<bool> flutterConvertAssetsToWebp({Confirm confirm = askUser}) async {
   final currentDir = Directory.current;
+  final root = findProjectRoot(currentDir);
 
-  if (!currentDir.existsSync()) {
-    logError('❌ 当前目录不存在');
-    return;
+  final skipped = <File>[];
+  final byTarget = <String, List<File>>{};
+  for (final file in collectProjectFiles(currentDir, _isPng)) {
+    final webpPath = _webpPathOf(file.path);
+    if (File(webpPath).existsSync()) {
+      skipped.add(file);
+    } else {
+      (byTarget[webpPath] ??= []).add(file);
+    }
+  }
+  // a.png 和 a.PNG 会转换成同一个 a.webp，转换后两张原图都会被删，必须跳过
+  final conflicts = [
+    for (final group in byTarget.values)
+      if (group.length > 1) ...group,
+  ];
+  final pngFiles = [
+    for (final group in byTarget.values)
+      if (group.length == 1) group.single,
+  ];
+
+  if (skipped.isNotEmpty) {
+    logWarning('⏭️ 以下 ${skipped.length} 个 PNG 已有同名 WebP，已跳过（原图和代码引用保持不变）:');
+    for (final file in skipped) {
+      logWarning('  - ${file.path}');
+    }
+  }
+  for (final file in conflicts) {
+    logError('❌ 与其他 PNG 会转换成同一个 WebP（仅扩展名大小写不同），已跳过: ${file.path}');
+  }
+  if (pngFiles.isEmpty) {
+    logWarning('⚠️ 没有需要转换的 PNG');
+    return conflicts.isEmpty;
+  }
+
+  // 先检查一次 cwebp，避免逐个文件失败刷屏
+  if (!await _hasCwebp()) {
+    logError('❌ 错误: 未找到 cwebp 命令');
+    logInfoInstallInstructions();
+    return false;
+  }
+
+  if (!confirm('将把 ${pngFiles.length} 个 PNG 转为 WebP（质量 80）并删除原 PNG，是否继续？')) {
+    logWarning('❎ 已取消，未修改任何文件。');
+    return true;
   }
 
   logInfo('🔍 开始转换 PNG 为 WebP...');
-  await convertPngToWebp(currentDir);
+  final failed = await convertPngToWebp(pngFiles, root) + conflicts.length;
 
-  final root = findProjectRoot(currentDir);
   logInfo('🔁 开始修改图片引用...');
   final libDir = Directory(p.join(root.path, 'lib'));
   if (libDir.existsSync()) {
@@ -27,97 +72,102 @@ Future<void> flutterConvertAssetsToWebp() async {
   }
   _updatePubspecReferences(File(p.join(root.path, 'pubspec.yaml')));
 
+  if (failed > 0) {
+    logError('❌ $failed 个文件转换失败或被跳过');
+    return false;
+  }
   logSuccess('✅ 全部完成！');
+  return true;
 }
+
+/// 排除旧版本中断后残留在原图旁的临时文件 `xxx.png.tmp.png`
+bool _isPng(String path) {
+  final lower = path.toLowerCase();
+  return lower.endsWith('.png') && !lower.endsWith('.png.tmp.png');
+}
+
+String _webpPathOf(String pngPath) =>
+    pngPath.replaceAll(RegExp(r'\.png$', caseSensitive: false), '.webp');
 
 String _toWebpPath(String pngPath) => p.posix.setExtension(pngPath, '.webp');
 
-Future<void> convertPngToWebp(Directory dir, {int concurrency = 6}) async {
-  int total = 0, success = 0, fail = 0;
+Future<bool> _hasCwebp() async {
+  try {
+    return (await Process.run('cwebp', ['-version'])).exitCode == 0;
+  } on ProcessException {
+    return false;
+  }
+}
+
+/// 转换 [pngFiles]，成功的删除原图并记录到 [convertedPngPaths]。返回失败数。
+Future<int> convertPngToWebp(List<File> pngFiles, Directory root,
+    {int concurrency = 6}) async {
+  int success = 0, fail = 0;
   final pool = Pool(concurrency);
-  final tasks = <Future<void>>[];
+  // 临时文件放在系统临时目录，避免中断后残留在项目里被当作待转换图片
+  final tempDir = Directory.systemTemp.createTempSync('cli_webp_');
 
-  final root = findProjectRoot(dir);
-  for (final entity in collectProjectFiles(
-      dir, (path) => path.toLowerCase().endsWith('.png'))) {
-    {
-      total++;
-      final pngPath = entity.path;
-      final webpPath =
-          pngPath.replaceAll(RegExp(r'\.png$', caseSensitive: false), '.webp');
-
-      final task = pool.withResource(() async {
-        if (File(webpPath).existsSync()) {
-          logInfo('⚠️ 已存在，跳过: $webpPath');
-          return;
-        }
-
-        try {
-          final bytes = await entity.readAsBytes();
-          final image = img.decodeImage(bytes);
-          if (image == null) {
-            logError('❌ 解码失败: $pngPath');
-            fail++;
-            return;
-          }
-
-          final tempPngPath = '$pngPath.tmp.png';
-          final pngBytes = img.encodePng(image);
-          await File(tempPngPath).writeAsBytes(pngBytes);
-
+  try {
+    await Future.wait([
+      for (final (index, entity) in pngFiles.indexed)
+        pool.withResource(() async {
+          final pngPath = entity.path;
+          final webpPath = _webpPathOf(pngPath);
+          final tempPngPath = p.join(tempDir.path, '$index.png');
           try {
+            final image = img.decodeImage(await entity.readAsBytes());
+            if (image == null) {
+              logError('❌ 解码失败: $pngPath');
+              fail++;
+              return;
+            }
+
+            await File(tempPngPath).writeAsBytes(img.encodePng(image));
             final result = await Process.run(
                 'cwebp', ['-q', '80', tempPngPath, '-o', webpPath]);
 
-            try {
-              await File(tempPngPath).delete();
-            } catch (e) {
-              logInfo('⚠️ 无法删除临时文件 $tempPngPath - $e');
-            }
-
-            if (result.exitCode == 0) {
-              logInfo('✅ $pngPath → $webpPath');
-              success++;
-              //pngPath加入convertedPngPaths数组(忽略倍图的路径 eg: xxx@2x.png)
-              // 忽略倍图路径（如 xxx@2x.png 或 xxx@3x.png）
-              if (!RegExp(r'@[\dx]+\.png$', caseSensitive: false)
-                  .hasMatch(pngPath)) {
-                convertedPngPaths.add(
-                    p.split(p.relative(pngPath, from: root.path)).join('/'));
-              }
-
-              try {
-                await entity.delete();
-                logInfo('🗑️ 已删除原 PNG 文件: $pngPath');
-              } catch (e) {
-                logInfo('⚠️ 删除失败: $pngPath - $e');
-              }
-            } else {
-              logError('❌ 转换失败: ${result.stderr}');
+            if (result.exitCode != 0) {
+              logError('❌ 转换失败: $pngPath ${result.stderr}');
               fail++;
+              return;
             }
-          } on ProcessException {
-            logError('❌ 错误: 未找到 cwebp 命令');
-            logInfoInstallInstructions();
-            try {
-              await File(tempPngPath).delete();
-            } catch (_) {}
-            fail++;
-          }
-        } catch (e) {
-          logError('❌ 异常: $pngPath - $e');
-          fail++;
-        }
-      });
+            logInfo('✅ $pngPath → $webpPath');
+            success++;
+            // 忽略倍图路径（如 xxx@2x.png 或 xxx@3x.png）
+            if (!RegExp(r'@[\dx]+\.png$', caseSensitive: false)
+                .hasMatch(pngPath)) {
+              convertedPngPaths
+                  .add(p.split(p.relative(pngPath, from: root.path)).join('/'));
+            }
 
-      tasks.add(task);
-    }
+            try {
+              await entity.delete();
+              logInfo('🗑️ 已删除原 PNG 文件: $pngPath');
+            } catch (e) {
+              logWarning('⚠️ 删除失败: $pngPath - $e');
+            }
+          } catch (e) {
+            logError('❌ 异常: $pngPath - $e');
+            fail++;
+          } finally {
+            try {
+              final temp = File(tempPngPath);
+              if (temp.existsSync()) await temp.delete();
+            } catch (e) {
+              logWarning('⚠️ 无法删除临时文件 $tempPngPath - $e');
+            }
+          }
+        }),
+    ]);
+  } finally {
+    await pool.close();
+    try {
+      tempDir.deleteSync(recursive: true);
+    } catch (_) {}
   }
 
-  await Future.wait(tasks);
-  await pool.close();
-
-  logInfo('\n📊 转换统计: 总数 $total, 成功 $success, 失败 $fail\n');
+  logInfo('\n📊 转换统计: 总数 ${pngFiles.length}, 成功 $success, 失败 $fail\n');
+  return fail;
 }
 
 void logInfoInstallInstructions() {

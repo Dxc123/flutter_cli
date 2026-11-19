@@ -1,6 +1,76 @@
 import 'dart:io';
 import 'package:path/path.dart' as path;
 import 'package:http/http.dart' as http;
+
+import 'cli_confirm.dart';
+import 'cli_log_until.dart';
+
+/// 加载模板内容，失败返回 null
+typedef TemplateLoader = Future<String?> Function(String templatePath, String baseUrl);
+
+/// 按 {目标文件: 模板路径} 生成文件。
+///
+/// 已存在的文件需经 [confirm] 同意才覆盖，拒绝则不写入任何文件；
+/// 先获取全部模板再写入，任一模板获取失败也不写入，避免留下不完整的目录。
+/// 没有出错（包括用户取消）时返回 true。
+Future<bool> writeTemplates(
+  Map<String, String> files,
+  String baseUrl, {
+  String Function(String content)? transform,
+  Confirm confirm = askUser,
+  TemplateLoader loader = loadTemplateFromGithub,
+}) async {
+  final notFiles = files.keys
+      .where((f) => !const [FileSystemEntityType.file, FileSystemEntityType.notFound]
+          .contains(FileSystemEntity.typeSync(f)))
+      .toList();
+  if (notFiles.isNotEmpty) {
+    for (final f in notFiles) {
+      logError('❌ 目标路径已存在且不是文件: $f');
+    }
+    logError('未写入任何文件');
+    return false;
+  }
+
+  final existing = files.keys.where((f) => File(f).existsSync()).toList();
+  if (existing.isNotEmpty) {
+    logWarning('以下 ${existing.length} 个文件已存在:');
+    for (final f in existing) {
+      logWarning('  - $f');
+    }
+    if (!confirm('是否覆盖这些文件？')) {
+      logWarning('❎ 已取消，未修改任何文件。');
+      return true;
+    }
+  }
+
+  final contents = <String, String>{};
+  for (final MapEntry(key: target, value: template) in files.entries) {
+    final content = await loader(template, baseUrl);
+    if (content == null) {
+      logError('❌ 获取模板失败: $template，未写入任何文件');
+      return false;
+    }
+    contents[target] = transform == null ? content : transform(content);
+  }
+
+  var written = 0;
+  for (final MapEntry(key: target, value: content) in contents.entries) {
+    try {
+      final file = File(target);
+      file.parent.createSync(recursive: true);
+      file.writeAsStringSync(content);
+    } on FileSystemException catch (e) {
+      logError('❌ 写入失败: $target → ${e.message} ${e.osError ?? ''}');
+      logError('已写入 $written/${contents.length} 个文件，请检查后重试');
+      return false;
+    }
+    written++;
+    logSuccess('✅ Created file: $target');
+  }
+  return true;
+}
+
 /// 从 GitHub 加载模板文件
 Future<String?> loadTemplateFromGithub(
   String templatePath,
@@ -47,7 +117,7 @@ Future<String?> loadTemplateFromGithub(
 }
 
 /// 清理本地模板缓存
-Future<void> clearTemplateCache() async {
+Future<void> clearTemplateCache({Confirm confirm = askUser}) async {
   final cacheDir = Directory(path.join(_getGlobalPackagesPath(), '.template_cache'));
 
   if (!await cacheDir.exists()) {
@@ -55,9 +125,7 @@ Future<void> clearTemplateCache() async {
     return;
   }
 
-  stdout.write('⚠️ Are you sure you want to delete ${cacheDir.path}? (y/N): ');
-  final response = stdin.readLineSync()?.toLowerCase().trim();
-  if (response != 'y') {
+  if (!confirm('Are you sure you want to delete ${cacheDir.path}?')) {
     print('❎ Cancelled.');
     return;
   }
